@@ -35,8 +35,13 @@ public class SecurityConfig {
             .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()  // 限制GET
             .requestMatchers("/api/v1/admin/products/**").hasRole("ADMIN")
+            .requestMatchers("/api/v1/users/{id}").authenticated()  // 添加具體的用戶訪問權限
             .anyRequest().authenticated()
-        );
+        )
+
+        // 添加 JWT 過濾器
+        .addFilterBefore(new JwtAuthenticationFilter(jwtUtil),
+            UsernamePasswordAuthenticationFilter.class);  // 添加這一行
 
     return http.build();
   }

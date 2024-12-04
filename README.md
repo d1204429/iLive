@@ -115,6 +115,7 @@ src
     │           │   │   ├── OrderItem.java          # 訂單項目實體
     │           │   │   └── OrderStatus.java        # 訂單狀態實體
     │           │   ├── cart                        # 購物車相關模型
+    │           │   │   ├── CartItems.java          # 訂單項目實體    
     │           │   │   └── ShoppingCart.java       # 購物車實體
     │           │   └── promotion                   # 促銷相關模型
     │           │       ├── Promotion.java          # 促銷活動實體
