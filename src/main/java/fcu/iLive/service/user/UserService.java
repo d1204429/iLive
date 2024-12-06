@@ -22,14 +22,14 @@ public class UserService {
   @Autowired
   private JwtUtil jwtUtil;
 
-  /**
-   * 用戶註冊
-   */
+  // 用戶註冊
   public User register(User user) {
+    // 檢查用戶名是否已存在
     if (userRepository.findByUsername(user.getUsername()) != null) {
       throw new RuntimeException("用戶名已存在");
     }
 
+    // 檢查電子郵件是否已存在
     if (userRepository.findByEmail(user.getEmail()) != null) {
       throw new RuntimeException("電子郵件已存在");
     }
@@ -41,19 +41,21 @@ public class UserService {
     return userRepository.save(user);
   }
 
-  /**
-   * 用戶登入
-   */
+  // 用戶登入
   public Map<String, String> login(String username, String password) {
+    // 查找用戶
     User user = userRepository.findByUsername(username);
 
+    // 驗證用戶名和密碼
     if (user == null || !passwordEncoder.matches(password, user.getPasswordHash())) {
       throw new RuntimeException("用戶名或密碼錯誤");
     }
 
-    String accessToken = jwtUtil.generateAccessToken(username);
-    String refreshToken = jwtUtil.generateRefreshToken(username);
+    // 使用用戶ID生成令牌
+    String accessToken = jwtUtil.generateAccessToken(user.getUserId());  // 修改這裡
+    String refreshToken = jwtUtil.generateRefreshToken(user.getUserId()); // 修改這裡
 
+    // 回傳令牌
     Map<String, String> tokens = new HashMap<>();
     tokens.put("accessToken", accessToken);
     tokens.put("refreshToken", refreshToken);
@@ -61,12 +63,7 @@ public class UserService {
     return tokens;
   }
 
-  /**
-   * 更新用戶資料
-   * @param userId 用戶ID
-   * @param updatedUser 更新的資料
-   * @return 更新後的用戶資料
-   */
+  // 更新用戶資料
   public User updateUser(int userId, User updatedUser) {
     User user = userRepository.findById(userId);
 
@@ -74,6 +71,7 @@ public class UserService {
       throw new RuntimeException("找不到用戶");
     }
 
+    // 更新用戶資料
     user.setEmail(updatedUser.getEmail());
     user.setFullName(updatedUser.getFullName());
     user.setPhoneNumber(updatedUser.getPhoneNumber());
@@ -82,11 +80,7 @@ public class UserService {
     return userRepository.update(user);
   }
 
-  /**
-   * 獲取用戶資料
-   * @param userId 用戶ID
-   * @return 用戶資料
-   */
+  // 獲取用戶資料
   public User getUserById(int userId) {
     User user = userRepository.findById(userId);
     if (user == null) {
@@ -95,15 +89,11 @@ public class UserService {
     return user;
   }
 
-  /**
-   * 修改密碼
-   * @param userId 用戶ID
-   * @param oldPassword 舊密碼
-   * @param newPassword 新密碼
-   */
+  // 修改密碼
   public void changePassword(int userId, String oldPassword, String newPassword) {
     User user = getUserById(userId);
 
+    // 驗證舊密碼
     if (!passwordEncoder.matches(oldPassword, user.getPasswordHash())) {
       throw new RuntimeException("舊密碼錯誤");
     }

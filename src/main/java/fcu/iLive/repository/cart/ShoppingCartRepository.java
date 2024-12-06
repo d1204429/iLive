@@ -13,29 +13,47 @@ public class ShoppingCartRepository {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  // 根據用戶ID查找購物車
   public ShoppingCart findByUserId(int userId) {
     List<ShoppingCart> carts = jdbcTemplate.query(
-        "SELECT * FROM shopping_cart WHERE user_id = ?",
+        "SELECT * FROM ShoppingCart WHERE UserId = ?",  // 修改表名和欄位名
         new BeanPropertyRowMapper<>(ShoppingCart.class),
         userId
     );
     return carts.isEmpty() ? null : carts.get(0);
   }
 
+  // 根據購物車ID查找購物車
+  public ShoppingCart findById(int cartId) {
+    List<ShoppingCart> carts = jdbcTemplate.query(
+        "SELECT * FROM ShoppingCart WHERE CartId = ?",  // 修改表名和欄位名
+        new BeanPropertyRowMapper<>(ShoppingCart.class),
+        cartId
+    );
+    return carts.isEmpty() ? null : carts.get(0);
+  }
+
+  // 保存購物車
   public ShoppingCart save(ShoppingCart cart) {
     if (cart.getCartId() > 0) {
+      // 更新現有購物車
       jdbcTemplate.update(
-          "UPDATE shopping_cart SET user_id=?, created_at=? WHERE cart_id=?",
-          cart.getUserId(), cart.getCreatedAt(), cart.getCartId()
+          "UPDATE ShoppingCart SET UserId=?, CreatedAt=? WHERE CartId=?",  // 修改表名和欄位名
+          cart.getUserId(),
+          cart.getCreatedAt(),
+          cart.getCartId()
       );
     } else {
+      // 創建新購物車
       jdbcTemplate.update(
-          "INSERT INTO shopping_cart (user_id, created_at) VALUES (?,?)",
-          cart.getUserId(), cart.getCreatedAt()
+          "INSERT INTO ShoppingCart (UserId, CreatedAt) VALUES (?,?)",  // 修改表名和欄位名
+          cart.getUserId(),
+          cart.getCreatedAt()
       );
-      // 獲取新插入的購物車ID
+
+      // 獲取新創建的購物車ID
       List<ShoppingCart> newCart = jdbcTemplate.query(
-          "SELECT * FROM shopping_cart WHERE user_id = ? ORDER BY cart_id DESC LIMIT 1",
+          "SELECT * FROM ShoppingCart WHERE UserId = ? ORDER BY CartId DESC LIMIT 1",  // 修改表名和欄位名
           new BeanPropertyRowMapper<>(ShoppingCart.class),
           cart.getUserId()
       );

@@ -1,12 +1,9 @@
 package fcu.iLive.service.cart;
 
-import fcu.iLive.exception.BusinessException;
-import fcu.iLive.model.cart.ShoppingCart;
 import fcu.iLive.model.cart.CartItems;
-import fcu.iLive.model.product.Product;
-import fcu.iLive.repository.cart.ShoppingCartRepository;
+import fcu.iLive.model.cart.ShoppingCart;
 import fcu.iLive.repository.cart.CartItemsRepository;
-import fcu.iLive.repository.product.ProductRepository;
+import fcu.iLive.repository.cart.ShoppingCartRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -18,128 +15,92 @@ import java.util.List;
 public class CartService {
 
   @Autowired
-  private ShoppingCartRepository cartRepository;
+  private ShoppingCartRepository shoppingCartRepository;
 
   @Autowired
   private CartItemsRepository cartItemsRepository;
 
-  @Autowired
-  private ProductRepository productRepository;
-
-  /**
-   * 獲取或創建購物車
-   */
-  @Transactional
-  public ShoppingCart getOrCreateCart(int userId) {
-    ShoppingCart cart = cartRepository.findByUserId(userId);
+  // 確保用戶有購物車並返回購物車ID
+  private int ensureUserHasCart(int userId) {
+    ShoppingCart cart = shoppingCartRepository.findByUserId(userId);
     if (cart == null) {
+      // 創建新購物車
       cart = new ShoppingCart();
       cart.setUserId(userId);
       cart.setCreatedAt(LocalDateTime.now());
-      cart = cartRepository.save(cart);
+      cart = shoppingCartRepository.save(cart);
     }
-    return cart;
+    return cart.getCartId();
   }
 
-  /**
-   * 添加商品到購物車
-   */
+  // 添加商品到購物車
   @Transactional
   public void addToCart(int userId, int productId, int quantity) {
-    // 檢查商品
-    Product product = productRepository.findById(productId);
-    if (product == null) {
-      throw new BusinessException("商品不存在");
-    }
+    int cartId = ensureUserHasCart(userId);
+    CartItems existingItem = cartItemsRepository.findByCartIdAndProductId(cartId, productId);
 
-    // 檢查數量
-    if (quantity < 1) {
-      throw new BusinessException("商品數量不能小於1");
-    }
-
-    // 檢查庫存
-    if (product.getStock() < quantity) {
-      throw new BusinessException("商品庫存不足");
-    }
-
-    // 獲取購物車
-    ShoppingCart cart = getOrCreateCart(userId);
-    CartItems cartItem = cartItemsRepository.findByCartIdAndProductId(cart.getCartId(), productId);
-
-    if (cartItem == null) {
-      // 新增購物車項目
-      cartItem = new CartItems();
-      cartItem.setCartId(cart.getCartId());
-      cartItem.setProductId(productId);
-      cartItem.setQuantity(quantity);
-      cartItem.setCreatedAt(LocalDateTime.now());
-      cartItem.setUpdatedAt(LocalDateTime.now());
+    if (existingItem != null) {
+      existingItem.setQuantity(existingItem.getQuantity() + quantity);
+      cartItemsRepository.update(existingItem);
     } else {
-      // 更新數量
-      int newQuantity = cartItem.getQuantity() + quantity;
-      if (product.getStock() < newQuantity) {
-        throw new BusinessException("商品庫存不足");
-      }
-      cartItem.setQuantity(newQuantity);
-      cartItem.setUpdatedAt(LocalDateTime.now());
+      CartItems newItem = new CartItems();
+      newItem.setCartId(cartId);
+      newItem.setProductId(productId);
+      newItem.setQuantity(quantity);
+      newItem.setCreatedAt(LocalDateTime.now());
+      cartItemsRepository.save(newItem);
     }
-
-    cartItemsRepository.save(cartItem);
   }
 
-  /**
-   * 更新購物車項目數量
-   */
-  @Transactional
-  public void updateCartItemQuantity(int cartItemId, int quantity) {
-    // 1. 先檢查購物車項目是否存在
-    CartItems cartItem = cartItemsRepository.findById(cartItemId);
-    if (cartItem == null) {
-      throw new BusinessException("購物車項目不存在");
-    }
-
-    // 2. 檢查修改後的數量是否合法（>=1）
-    if (quantity < 1) {
-      throw new BusinessException("商品數量不能小於1");
-    }
-
-    // 3. 送出後檢查庫存是否足夠
-    Product product = productRepository.findById(cartItem.getProductId());
-    if (product.getStock() < quantity) {
-      throw new BusinessException("商品庫存不足");
-    }
-
-    // 4. 都通過後才更新數量
-    cartItem.setQuantity(quantity);
-    cartItem.setUpdatedAt(LocalDateTime.now());
-    cartItemsRepository.save(cartItem);
-  }
-
-  /**
-   * 刪除單個購物車項目
-   */
-  @Transactional
-  public void removeCartItem(int cartItemId) {
-    CartItems cartItem = cartItemsRepository.findById(cartItemId);
-    if (cartItem == null) {
-      throw new BusinessException("購物車項目不存在");
-    }
-    cartItemsRepository.deleteById(cartItemId);
-  }
-
-  /**
-   * 獲取購物車所有商品
-   */
+  // 獲取購物車中的所有商品
   public List<CartItems> getCartItems(int userId) {
-    ShoppingCart cart = getOrCreateCart(userId);
-    return cartItemsRepository.findByCartId(cart.getCartId());
+    int cartId = ensureUserHasCart(userId);
+    return cartItemsRepository.findByCartId(cartId);
   }
 
-  /**
-   * 清空購物車
-   */
+  // 更新購物車商品數量
   @Transactional
-  public void clearCartItems(int cartId) {
+  public void updateCartItemQuantity(int userId, int cartItemId, int quantity) {
+    CartItems item = cartItemsRepository.findById(cartItemId);
+    if (item == null) {
+      throw new RuntimeException("購物車項目不存在");
+    }
+
+    // 檢查該商品是否屬於用戶的購物車
+    ShoppingCart cart = shoppingCartRepository.findByUserId(userId);
+    if (cart == null || item.getCartId() != cart.getCartId()) {
+      throw new RuntimeException("無權操作此購物車項目");
+    }
+
+    item.setQuantity(quantity);
+    cartItemsRepository.update(item);
+  }
+
+  // 從購物車中移除商品
+  @Transactional
+  public void removeCartItem(int userId, int cartItemId) {
+    CartItems item = cartItemsRepository.findById(cartItemId);
+    if (item == null) {
+      throw new RuntimeException("購物車項目不存在");
+    }
+
+    // 檢查該商品是否屬於用戶的購物車
+    ShoppingCart cart = shoppingCartRepository.findByUserId(userId);
+    if (cart == null || item.getCartId() != cart.getCartId()) {
+      throw new RuntimeException("無權操作此購物車項目");
+    }
+
+    cartItemsRepository.delete(cartItemId);
+  }
+
+  // 清空購物車
+  @Transactional
+  public void clearCartItems(int userId, int cartId) {
+    ShoppingCart cart = shoppingCartRepository.findByUserId(userId);
+    if (cart == null || cart.getCartId() != cartId) {
+      throw new RuntimeException("無權操作此購物車");
+    }
+
     cartItemsRepository.deleteAllByCartId(cartId);
   }
 }

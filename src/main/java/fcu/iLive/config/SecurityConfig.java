@@ -22,26 +22,21 @@ public class SecurityConfig {
   private JwtUtil jwtUtil;
 
   @Bean
-  public BCryptPasswordEncoder passwordEncoder() {
-    return new BCryptPasswordEncoder();
-  }
-
-  @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
         .csrf(csrf -> csrf.disable())
         .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()  // 限制GET
+            .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
             .requestMatchers("/api/v1/admin/products/**").hasRole("ADMIN")
-            .requestMatchers("/api/v1/users/{id}").authenticated()  // 添加具體的用戶訪問權限
+            .requestMatchers("/api/v1/users/{id}").authenticated()
+            // 購物車相關端點 - 可以簡化為一行，因為都需要相同的權限
+            .requestMatchers("/api/v1/cart/**").authenticated()
             .anyRequest().authenticated()
         )
-
-        // 添加 JWT 過濾器
         .addFilterBefore(new JwtAuthenticationFilter(jwtUtil),
-            UsernamePasswordAuthenticationFilter.class);  // 添加這一行
+            UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
