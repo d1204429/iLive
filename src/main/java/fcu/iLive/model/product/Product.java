@@ -22,7 +22,12 @@ public class Product {
   private String imageUrl;            // ImageURL VARCHAR(255)
   private LocalDateTime createdAt;    // CreatedAt DATETIME
   private LocalDateTime updatedAt;    // UpdatedAt DATETIME
-  private Category category;          // 關聯對象
+  private int lockedStock;        // 鎖定庫存
+  private Category category;          // 關聯對象 關聯式資料庫設計僅在需要時才會使用
 
-  // Constructor, Getters and Setters
+   // Constructor, Getters and Setters
+
+  public int getAvailableStock() {
+    return this.stock - this.lockedStock;
+  }
 }
