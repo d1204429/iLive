@@ -29,10 +29,13 @@ public class SecurityConfig {
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
+            // 管理員新增產品端點
             .requestMatchers("/api/v1/admin/products/**").hasRole("ADMIN")
             .requestMatchers("/api/v1/users/{id}").authenticated()
-            // 購物車相關端點 - 可以簡化為一行，因為都需要相同的權限
+            // 購物車相關端點
             .requestMatchers("/api/v1/cart/**").authenticated()
+            // 訂單相關端點
+            .requestMatchers("/api/v1/orders/**").authenticated()
             .anyRequest().authenticated()
         )
         .addFilterBefore(new JwtAuthenticationFilter(jwtUtil),

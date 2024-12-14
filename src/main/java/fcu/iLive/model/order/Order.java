@@ -5,6 +5,7 @@ package fcu.iLive.model.order;
 import fcu.iLive.model.user.User;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -13,15 +14,17 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class Order {
-  private int orderId;                // OrderID INT
-  private int userId;                 // UserID INT
-  private LocalDateTime orderDate;    // OrderDate DATETIME
-  private BigDecimal totalAmount;     // TotalAmount DECIMAL(10,2)
-  private String shippingAddress;     // ShippingAddress TEXT
-  private String paymentMethod;       // PaymentMethod VARCHAR(50)
-  private int statusId;               // StatusID INT
-  private User user;                  // 關聯對象
-  private OrderStatus status;         // 關聯對象
+  private int orderId;
+  private int userId;
+  private LocalDateTime orderDate;
+  private BigDecimal totalAmount;
+  private String shippingAddress;
+  private String paymentMethod;
+  private int statusId;
+  private LocalDateTime createdAt;
 
-  // Constructor, Getters and Setters
+  // 關聯對象
+  private User user;
+  private OrderStatus status;
+  private List<OrderItem> items;
 }

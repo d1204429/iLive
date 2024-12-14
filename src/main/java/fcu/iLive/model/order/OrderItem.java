@@ -4,6 +4,7 @@ package fcu.iLive.model.order;
 
 import fcu.iLive.model.product.Product;
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -12,13 +13,13 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 @NoArgsConstructor
 public class OrderItem {
-  private int orderItemId;            // OrderItemID INT
-  private int orderId;                // OrderID INT
-  private int productId;              // ProductID INT
-  private int quantity;               // Quantity INT
-  private BigDecimal price;           // Price DECIMAL(10,2)
-  private Order order;                // 關聯對象
-  private Product product;            // 關聯對象
+  private int orderItemId;
+  private int orderId;
+  private int productId;
+  private int quantity;
+  private BigDecimal price;
+  private LocalDateTime createdAt;
 
-  // Constructor, Getters and Setters
+  // 關聯對象
+  private Product product;
 }
