@@ -14,6 +14,7 @@ public class User {
   private int userId;                 // 使用者ID
   private String username;            // 使用者名稱
   private String passwordHash;        // 密碼雜湊值
+  private String password;
   private String email;               // 電子郵件
   private String fullName;            // 使用者全名
   private String phoneNumber;         // 聯絡電話

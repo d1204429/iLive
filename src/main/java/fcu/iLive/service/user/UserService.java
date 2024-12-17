@@ -35,7 +35,7 @@ public class UserService {
     }
 
     // 加密密碼
-    String hashedPassword = passwordEncoder.encode(user.getPasswordHash());
+    String hashedPassword = passwordEncoder.encode(user.getPassword());
     user.setPasswordHash(hashedPassword);
 
     return userRepository.save(user);

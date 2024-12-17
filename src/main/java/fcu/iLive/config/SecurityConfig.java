@@ -11,6 +11,11 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.http.HttpMethod;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import java.util.Arrays;
 
 import static org.springframework.security.config.http.SessionCreationPolicy.STATELESS;
 
@@ -24,17 +29,15 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
+        .cors(cors -> cors.configurationSource(corsConfigurationSource())) // 加入這行
         .csrf(csrf -> csrf.disable())
         .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
         .authorizeHttpRequests(auth -> auth
             .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
-            // 管理員新增產品端點
             .requestMatchers("/api/v1/admin/products/**").hasRole("ADMIN")
             .requestMatchers("/api/v1/users/{id}").authenticated()
-            // 購物車相關端點
             .requestMatchers("/api/v1/cart/**").authenticated()
-            // 訂單相關端點
             .requestMatchers("/api/v1/orders/**").authenticated()
             .anyRequest().authenticated()
         )
@@ -43,7 +46,18 @@ public class SecurityConfig {
 
     return http.build();
   }
+
+  @Bean
+  public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration configuration = new CorsConfiguration();
+    configuration.setAllowedOrigins(Arrays.asList("http://localhost:8080","http://192.168.226.1:8080","http://192.168.180.1:8080","http://192.168.43.90:8080")); // 前端的網址
+    configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+    configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+    configuration.setAllowCredentials(true);
+    configuration.setExposedHeaders(Arrays.asList("Authorization")); // 如果需要在前端讀取 Authorization header
+
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
+  }
 }
-
-
-//            .requestMatchers("/api/v1/users/**").permitAll()
