@@ -19,6 +19,7 @@ public class ProductService {
   public Product createProduct(Product product) {
     // 確保新商品的 lockedStock 為 0
     product.setLockedStock(0);
+    product.setStatus(1);
     return productRepository.save(product);
   }
 
@@ -28,6 +29,10 @@ public class ProductService {
 
   public List<Product> getAllProducts() {
     return productRepository.findAll();
+  }
+
+  public List<Product> getAllActiveProducts() {
+    return productRepository.findAllActive();
   }
 
   @Transactional
@@ -61,4 +66,6 @@ public class ProductService {
     Product product = productRepository.findById(productId);
     return product != null ? product.getAvailableStock() : 0;
   }
+
+
 }

@@ -47,7 +47,7 @@ public class ProductRepository {
    */
   public Product save(Product product) {
     String sql = "INSERT INTO Products (Name, Description, Price, Stock, CategoryID, Brand, " +
-        "ImageURL, LockedStock) VALUES (?, ?, ?, ?, ?, ?, ?, 0)";
+        "ImageURL, LockedStock) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)";
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -60,6 +60,7 @@ public class ProductRepository {
       ps.setInt(5, product.getCategoryId());
       ps.setString(6, product.getBrand());
       ps.setString(7, product.getImageUrl());
+      ps.setInt(8, product.getStatus());
       return ps;
     }, keyHolder);
 
@@ -68,11 +69,20 @@ public class ProductRepository {
   }
 
   /**
-   * 查詢所有商品
-   * @return 商品列表
+   * 查詢所有商品（管理員使用）
+   * @return 所有商品列表，包含上架和下架的商品
    */
   public List<Product> findAll() {
     String sql = "SELECT * FROM Products";
+    return jdbcTemplate.query(sql, this::mapRowToProduct);
+  }
+
+  /**
+   * 查詢所有上架商品（前台使用）
+   * @return 上架商品列表
+   */
+  public List<Product> findAllActive() {
+    String sql = "SELECT * FROM Products WHERE Status = 1";
     return jdbcTemplate.query(sql, this::mapRowToProduct);
   }
 
@@ -166,6 +176,7 @@ public class ProductRepository {
         rs.getTimestamp("CreatedAt").toLocalDateTime() : null);
     product.setUpdatedAt(rs.getTimestamp("UpdatedAt") != null ?
         rs.getTimestamp("UpdatedAt").toLocalDateTime() : null);
+    product.setStatus(rs.getInt("Status"));
     return product;
   }
 

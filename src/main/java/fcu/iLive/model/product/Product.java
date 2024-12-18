@@ -23,11 +23,17 @@ public class Product {
   private LocalDateTime createdAt;    // CreatedAt DATETIME
   private LocalDateTime updatedAt;    // UpdatedAt DATETIME
   private int lockedStock;        // 鎖定庫存
+  private int status;                 // Status TINYINT - 商品狀態：0=下架，1=上架
   private Category category;          // 關聯對象 關聯式資料庫設計僅在需要時才會使用
 
    // Constructor, Getters and Setters
 
   public int getAvailableStock() {
     return this.stock - this.lockedStock;
+  }
+
+  // 檢查商品是否上架的方法
+  public boolean isActive() {
+    return this.status == 1;
   }
 }

@@ -22,8 +22,8 @@ public class UserProductController {
   @GetMapping
   public ResponseEntity<List<Product>> getPublishedProducts() {
     try {
-      // 這裡可以加入篩選條件，只回傳上架商品
-      List<Product> products = productService.getAllProducts();
+      // 這裡只回傳上架商品 states = 1
+      List<Product> products = productService.getAllActiveProducts();
       return new ResponseEntity<>(products, HttpStatus.OK);
     } catch (Exception e) {
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
