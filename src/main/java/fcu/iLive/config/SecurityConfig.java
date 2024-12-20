@@ -14,6 +14,8 @@ import org.springframework.security.web.authentication.UsernamePasswordAuthentic
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Arrays;
 
@@ -22,6 +24,8 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 @Configuration
 @EnableWebSecurity
 public class SecurityConfig {
+
+  private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
   @Autowired
   private JwtUtil jwtUtil;
@@ -33,20 +37,24 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    // 允許所有人訪問的路徑
+                    // 靜態資源和錯誤頁面
                     .requestMatchers(
                             "/",
                             "/static/**",
                             "/images/**",
                             "/favicon.ico",
-                            "/error"
+                            "/error",
+                            "/products/**",
+                            "/categories/**"
                     ).permitAll()
                     // 公開API路徑
                     .requestMatchers(
                             "/api/v1/users/register",
                             "/api/v1/users/login",
                             "/api/v1/users/refresh-token",
-                            "/api/v1/users/logout"
+                            "/api/v1/users/logout",
+                            "/api/v1/products/**",
+                            "/api/v1/categories/**"
                     ).permitAll()
                     // GET請求公開路徑
                     .requestMatchers(HttpMethod.GET,
@@ -66,6 +74,20 @@ public class SecurityConfig {
             .addFilterBefore(
                     new JwtAuthenticationFilter(jwtUtil),
                     UsernamePasswordAuthenticationFilter.class
+            )
+            .exceptionHandling(exceptions -> exceptions
+                    .authenticationEntryPoint((request, response, authException) -> {
+                      logger.error("Unauthorized error: {}", authException.getMessage());
+                      response.setStatus(401);
+                      response.setContentType("application/json;charset=UTF-8");
+                      response.getWriter().write("{\"message\":\"未授權訪問\"}");
+                    })
+                    .accessDeniedHandler((request, response, accessDeniedException) -> {
+                      logger.error("Access denied error: {}", accessDeniedException.getMessage());
+                      response.setStatus(403);
+                      response.setContentType("application/json;charset=UTF-8");
+                      response.getWriter().write("{\"message\":\"拒絕訪問\"}");
+                    })
             );
 
     return http.build();

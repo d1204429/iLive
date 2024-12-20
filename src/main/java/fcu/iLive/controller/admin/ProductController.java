@@ -13,7 +13,8 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/admin/products")  // 後台
+//@RequestMapping("/api/v1/admin/products")  // 後台
+@RequestMapping("/products")  // 移除 /api/v1 前綴
 public class ProductController {
 
   @Autowired
