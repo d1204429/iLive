@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
+import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.http.HttpMethod;
@@ -34,34 +35,40 @@ public class SecurityConfig {
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .csrf(csrf -> csrf.disable())
+            .csrf(AbstractHttpConfigurer::disable)
             .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
             .authorizeHttpRequests(auth -> auth
+                    // 靜態資源和錯誤頁面
                     .requestMatchers(
                             "/",
                             "/static/**",
                             "/images/**",
                             "/favicon.ico",
-                            "/error",
-                            "/products/**",
-                            "/categories/**"
+                            "/error"
                     ).permitAll()
+                    // 公開API路徑
                     .requestMatchers(
                             "/api/v1/users/register",
                             "/api/v1/users/login",
                             "/api/v1/users/refresh-token",
                             "/api/v1/users/logout"
                     ).permitAll()
+                    // 產品相關公開路徑
                     .requestMatchers(HttpMethod.GET,
                             "/api/v1/products/**",
                             "/api/v1/categories/**",
-                            "/api/v1/promotions/**"
+                            "/api/v1/promotions/**",
+                            "/products/**",
+                            "/categories/**"
                     ).permitAll()
+                    // 管理員路徑
                     .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                    // 需要認證的路徑
                     .requestMatchers("/api/v1/users/{userId}/**").authenticated()
                     .requestMatchers("/api/v1/cart/**").authenticated()
                     .requestMatchers("/api/v1/orders/**").authenticated()
-                    .anyRequest().authenticated()
+                    // 其他請求需要認證
+                    .anyRequest().permitAll()
             )
             .addFilterBefore(
                     new JwtAuthenticationFilter(jwtUtil),
@@ -72,13 +79,13 @@ public class SecurityConfig {
                       logger.error("Unauthorized error: {}", authException.getMessage());
                       response.setStatus(401);
                       response.setContentType("application/json;charset=UTF-8");
-                      response.getWriter().write("{\"message\":\"未授權訪問\"}");
+                      response.getWriter().write("{\"message\":\"未授權訪問\",\"status\":\"error\"}");
                     })
                     .accessDeniedHandler((request, response, accessDeniedException) -> {
                       logger.error("Access denied error: {}", accessDeniedException.getMessage());
                       response.setStatus(403);
                       response.setContentType("application/json;charset=UTF-8");
-                      response.getWriter().write("{\"message\":\"拒絕訪問\"}");
+                      response.getWriter().write("{\"message\":\"拒絕訪問\",\"status\":\"error\"}");
                     })
             );
 
@@ -117,7 +124,8 @@ public class SecurityConfig {
             "Access-Control-Allow-Origin",
             "Access-Control-Allow-Credentials",
             "Access-Control-Allow-Methods",
-            "Access-Control-Allow-Headers"
+            "Access-Control-Allow-Headers",
+            "Access-Control-Max-Age"
     ));
     configuration.setAllowCredentials(true);
     configuration.setMaxAge(3600L);
