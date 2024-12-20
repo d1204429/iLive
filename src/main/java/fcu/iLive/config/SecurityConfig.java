@@ -37,7 +37,6 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    // 靜態資源和基礎路徑
                     .requestMatchers(
                             "/",
                             "/static/**",
@@ -47,27 +46,22 @@ public class SecurityConfig {
                             "/products/**",
                             "/categories/**"
                     ).permitAll()
-                    // 公開API路徑
                     .requestMatchers(
-                            "/users/register",
-                            "/users/login",
-                            "/users/refresh-token",
-                            "/users/logout"
+                            "/api/v1/users/register",
+                            "/api/v1/users/login",
+                            "/api/v1/users/refresh-token",
+                            "/api/v1/users/logout"
                     ).permitAll()
-                    // GET請求公開路徑
                     .requestMatchers(HttpMethod.GET,
-                            "/products/**",
-                            "/categories/**",
-                            "/promotions/**"
+                            "/api/v1/products/**",
+                            "/api/v1/categories/**",
+                            "/api/v1/promotions/**"
                     ).permitAll()
-                    // 管理員路徑
-                    .requestMatchers("/admin/**").hasRole("ADMIN")
-                    // 需要認證的路徑
-                    .requestMatchers("/users/{userId}/**").authenticated()
-                    .requestMatchers("/cart/**").authenticated()
-                    .requestMatchers("/orders/**").authenticated()
-                    // 其他請求允許訪問
-                    .anyRequest().permitAll()
+                    .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                    .requestMatchers("/api/v1/users/{userId}/**").authenticated()
+                    .requestMatchers("/api/v1/cart/**").authenticated()
+                    .requestMatchers("/api/v1/orders/**").authenticated()
+                    .anyRequest().authenticated()
             )
             .addFilterBefore(
                     new JwtAuthenticationFilter(jwtUtil),
