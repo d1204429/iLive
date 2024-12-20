@@ -29,13 +29,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                   FilterChain filterChain) throws ServletException, IOException {
 
     try {
-      // 檢查是否為預檢請求
       if (request.getMethod().equals("OPTIONS")) {
-        filterChain.doFilter(request, response);
+        response.setStatus(HttpServletResponse.SC_OK);
+        configureCorsHeaders(response, request.getHeader("Origin"));
         return;
       }
 
       String authHeader = request.getHeader("Authorization");
+      logger.debug("Processing request: {} {}", request.getMethod(), request.getRequestURI());
       logger.debug("Auth header: {}", authHeader);
 
       if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -43,10 +44,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token != null) {
           try {
-            // 驗證 Token
             int userId = jwtUtil.getUserIdFromToken(token);
 
-            if (userId != 0 && !jwtUtil.isTokenExpired(token)) {
+            if (userId != 0) {
+              if (jwtUtil.isTokenExpired(token)) {
+                handleTokenExpired(response);
+                return;
+              }
+
               UsernamePasswordAuthenticationToken authentication =
                       new UsernamePasswordAuthenticationToken(
                               String.valueOf(userId),
@@ -56,37 +61,57 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
               SecurityContextHolder.getContext().setAuthentication(authentication);
               logger.debug("User authenticated: {}", userId);
-            } else {
-              logger.warn("Invalid token for user: {}", userId);
             }
           } catch (Exception e) {
-            logger.error("Token validation failed: {}", e.getMessage());
-            SecurityContextHolder.clearContext();
-            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
-            response.getWriter().write("Token validation failed");
+            handleTokenValidationError(response, e);
             return;
           }
         }
       }
 
-      // 添加 CORS 標頭
-      response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
-      response.setHeader("Access-Control-Allow-Credentials", "true");
-      response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-      response.setHeader("Access-Control-Max-Age", "3600");
-      response.setHeader("Access-Control-Allow-Headers", "Authorization, Content-Type, Accept, X-Requested-With, remember-me");
-
+      configureCorsHeaders(response, request.getHeader("Origin"));
       filterChain.doFilter(request, response);
     } catch (Exception e) {
-      logger.error("Filter error: {}", e.getMessage());
-      response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-      response.getWriter().write("Internal server error");
+      handleFilterError(response, e);
     } finally {
-      // 清理上下文
       if (request.getRequestURI().contains("/logout")) {
         SecurityContextHolder.clearContext();
       }
     }
+  }
+
+  private void configureCorsHeaders(HttpServletResponse response, String origin) {
+    response.setHeader("Access-Control-Allow-Origin", origin);
+    response.setHeader("Access-Control-Allow-Credentials", "true");
+    response.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH");
+    response.setHeader("Access-Control-Max-Age", "3600");
+    response.setHeader("Access-Control-Allow-Headers",
+            "Authorization, Content-Type, Accept, Origin, X-Requested-With, Cache-Control");
+    response.setHeader("Access-Control-Expose-Headers",
+            "Authorization, Access-Control-Allow-Origin, Access-Control-Allow-Credentials");
+  }
+
+  private void handleTokenExpired(HttpServletResponse response) throws IOException {
+    logger.warn("Token has expired");
+    SecurityContextHolder.clearContext();
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.setContentType("application/json;charset=UTF-8");
+    response.getWriter().write("{\"message\":\"Token已過期，請重新登入\"}");
+  }
+
+  private void handleTokenValidationError(HttpServletResponse response, Exception e) throws IOException {
+    logger.error("Token validation failed: {}", e.getMessage());
+    SecurityContextHolder.clearContext();
+    response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+    response.setContentType("application/json;charset=UTF-8");
+    response.getWriter().write("{\"message\":\"無效的Token\"}");
+  }
+
+  private void handleFilterError(HttpServletResponse response, Exception e) throws IOException {
+    logger.error("Filter error: {}", e.getMessage());
+    response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+    response.setContentType("application/json;charset=UTF-8");
+    response.getWriter().write("{\"message\":\"系統錯誤\"}");
   }
 
   @Override
@@ -94,6 +119,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     String path = request.getRequestURI();
     return path.startsWith("/api/v1/users/login") ||
             path.startsWith("/api/v1/users/register") ||
-            path.startsWith("/api/v1/products") && request.getMethod().equals("GET");
+            path.startsWith("/api/v1/users/refresh-token") ||
+            path.startsWith("/api/v1/users/logout") ||
+            (path.startsWith("/api/v1/products") && request.getMethod().equals("GET")) ||
+            path.startsWith("/api/v1/categories") ||
+            path.startsWith("/api/v1/promotions") ||
+            path.equals("/api/v1/system/health") ||
+            path.startsWith("/static/") ||
+            path.startsWith("/images/");
   }
 }

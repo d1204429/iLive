@@ -33,20 +33,40 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    // 公開路徑
-                    .requestMatchers("/api/v1/users/register", "/api/v1/users/login", "/api/v1/users/refresh-token").permitAll()
-                    .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**").permitAll()
+                    // 允許所有人訪問的路徑
+                    .requestMatchers(
+                            "/",
+                            "/static/**",
+                            "/images/**",
+                            "/favicon.ico",
+                            "/error"
+                    ).permitAll()
+                    // 公開API路徑
+                    .requestMatchers(
+                            "/api/v1/users/register",
+                            "/api/v1/users/login",
+                            "/api/v1/users/refresh-token",
+                            "/api/v1/users/logout"
+                    ).permitAll()
+                    // GET請求公開路徑
+                    .requestMatchers(HttpMethod.GET,
+                            "/api/v1/products/**",
+                            "/api/v1/categories/**",
+                            "/api/v1/promotions/**"
+                    ).permitAll()
                     // 管理員路徑
                     .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
                     // 需要認證的路徑
                     .requestMatchers("/api/v1/users/**").authenticated()
                     .requestMatchers("/api/v1/cart/**").authenticated()
                     .requestMatchers("/api/v1/orders/**").authenticated()
-                    // 其他請求都需要認證
-                    .anyRequest().authenticated()
+                    // 其他請求允許訪問
+                    .anyRequest().permitAll()
             )
-            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil),
-                    UsernamePasswordAuthenticationFilter.class);
+            .addFilterBefore(
+                    new JwtAuthenticationFilter(jwtUtil),
+                    UsernamePasswordAuthenticationFilter.class
+            );
 
     return http.build();
   }
@@ -75,12 +95,15 @@ public class SecurityConfig {
             "Accept",
             "Origin",
             "Access-Control-Request-Method",
-            "Access-Control-Request-Headers"
+            "Access-Control-Request-Headers",
+            "Cache-Control"
     ));
     configuration.setExposedHeaders(Arrays.asList(
             "Authorization",
             "Access-Control-Allow-Origin",
-            "Access-Control-Allow-Credentials"
+            "Access-Control-Allow-Credentials",
+            "Access-Control-Allow-Methods",
+            "Access-Control-Allow-Headers"
     ));
     configuration.setAllowCredentials(true);
     configuration.setMaxAge(3600L);
