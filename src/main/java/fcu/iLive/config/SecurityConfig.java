@@ -37,7 +37,7 @@ public class SecurityConfig {
             .csrf(csrf -> csrf.disable())
             .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
             .authorizeHttpRequests(auth -> auth
-                    // 靜態資源和錯誤頁面
+                    // 靜態資源和基礎路徑
                     .requestMatchers(
                             "/",
                             "/static/**",
@@ -49,25 +49,23 @@ public class SecurityConfig {
                     ).permitAll()
                     // 公開API路徑
                     .requestMatchers(
-                            "/api/v1/users/register",
-                            "/api/v1/users/login",
-                            "/api/v1/users/refresh-token",
-                            "/api/v1/users/logout",
-                            "/api/v1/products/**",
-                            "/api/v1/categories/**"
+                            "/users/register",
+                            "/users/login",
+                            "/users/refresh-token",
+                            "/users/logout"
                     ).permitAll()
                     // GET請求公開路徑
                     .requestMatchers(HttpMethod.GET,
-                            "/api/v1/products/**",
-                            "/api/v1/categories/**",
-                            "/api/v1/promotions/**"
+                            "/products/**",
+                            "/categories/**",
+                            "/promotions/**"
                     ).permitAll()
                     // 管理員路徑
-                    .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                    .requestMatchers("/admin/**").hasRole("ADMIN")
                     // 需要認證的路徑
-                    .requestMatchers("/api/v1/users/**").authenticated()
-                    .requestMatchers("/api/v1/cart/**").authenticated()
-                    .requestMatchers("/api/v1/orders/**").authenticated()
+                    .requestMatchers("/users/{userId}/**").authenticated()
+                    .requestMatchers("/cart/**").authenticated()
+                    .requestMatchers("/orders/**").authenticated()
                     // 其他請求允許訪問
                     .anyRequest().permitAll()
             )
