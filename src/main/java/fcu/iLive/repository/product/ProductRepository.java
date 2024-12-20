@@ -47,7 +47,7 @@ public class ProductRepository {
    */
   public Product save(Product product) {
     String sql = "INSERT INTO Products (Name, Description, Price, Stock, CategoryID, Brand, " +
-        "ImageURL, LockedStock) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)";
+        "ImageURL, LockedStock, Status) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)";
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
 

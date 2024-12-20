@@ -1,27 +1,22 @@
 //促銷活動實體
 
+// src/main/java/fcu.iLive/model/promotion/Promotion.java
 package fcu.iLive.model.promotion;
 
+import lombok.Data;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class Promotion {
-  private int promotionId;            // PromotionID INT
-  private String title;               // Title VARCHAR(100)
-  private String description;         // Description TEXT
-  private String discountType;        // DiscountType ENUM
-  private BigDecimal discountValue;   // DiscountValue DECIMAL(10,2)
-  private LocalDateTime startDate;    // StartDate DATETIME
-  private LocalDateTime endDate;      // EndDate DATETIME
-  private boolean isActive;           // IsActive BOOLEAN
-  private LocalDateTime createdAt;    // CreatedAt DATETIME
-  private LocalDateTime updatedAt;    // UpdatedAt DATETIME
-
-  // Constructor, Getters and Setters
+  private int promotionId;
+  private String title;
+  private String description;
+  private String discountType;  // PERCENTAGE 或 FIXED_AMOUNT
+  private BigDecimal discountValue;
+  private LocalDateTime startDate;
+  private LocalDateTime endDate;
+  private Boolean isActive;
+  private LocalDateTime createdAt;
+  private LocalDateTime updatedAt;
 }
