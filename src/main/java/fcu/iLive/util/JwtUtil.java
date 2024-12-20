@@ -7,6 +7,7 @@ import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.SignatureException;
 import io.jsonwebtoken.security.Keys;
+import lombok.Setter;
 import org.springframework.stereotype.Component;
 
 import javax.crypto.SecretKey;
@@ -16,9 +17,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Function;
 
+@Setter
 @Component
 public class JwtUtil {
-  // JWT 加密用的密鑰
+    // 設定相關屬性的方法
+    // JWT 加密用的密鑰
   private String secret;
   // 存取令牌的有效期限（秒）
   private Long accessTokenExpiration;
@@ -36,7 +39,10 @@ public class JwtUtil {
     this.refreshTokenExpiration = refreshTokenExpiration;
   }
 
-  // 產生用於簽署 JWT 的加密金鑰
+    public JwtUtil(String secret, Long accessTokenExpiration, Long refreshTokenExpiration, String tokenPrefix, String headerName) {
+    }
+
+    // 產生用於簽署 JWT 的加密金鑰
   private SecretKey getSigningKey() {
     byte[] keyBytes = secret.getBytes(StandardCharsets.UTF_8);
     return Keys.hmacShaKeyFor(keyBytes);
@@ -133,16 +139,30 @@ public class JwtUtil {
     return null;
   }
 
-  // 設定相關屬性的方法
-  public void setSecret(String secret) {
-    this.secret = secret;
+    public boolean validateRefreshToken(String refreshToken) {
+    try {
+      // 檢查 token 是否為空
+      if (refreshToken == null || refreshToken.isEmpty()) {
+        return false;
+      }
+
+      // 解析並驗證 refresh token
+      Claims claims = getAllClaimsFromToken(refreshToken);
+
+      // 檢查是否過期
+      if (claims.getExpiration().before(new Date())) {
+        return false;
+      }
+
+      // 確保是 refresh token (可以添加額外的驗證邏輯)
+      int userId = claims.get("userId", Integer.class);
+      return userId > 0;
+
+    } catch (JwtException e) {
+      return false;
+    } catch (Exception e) {
+      return false;
+    }
   }
 
-  public void setAccessTokenExpiration(Long accessTokenExpiration) {
-    this.accessTokenExpiration = accessTokenExpiration;
-  }
-
-  public void setRefreshTokenExpiration(Long refreshTokenExpiration) {
-    this.refreshTokenExpiration = refreshTokenExpiration;
-  }
 }

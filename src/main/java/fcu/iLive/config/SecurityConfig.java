@@ -29,20 +29,24 @@ public class SecurityConfig {
   @Bean
   public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http
-        .cors(cors -> cors.configurationSource(corsConfigurationSource())) // 加入這行
-        .csrf(csrf -> csrf.disable())
-        .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
-        .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
-            .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
-            .requestMatchers("/api/v1/admin/products/**").hasRole("ADMIN")
-            .requestMatchers("/api/v1/users/{id}").authenticated()
-            .requestMatchers("/api/v1/cart/**").authenticated()
-            .requestMatchers("/api/v1/orders/**").authenticated()
-            .anyRequest().authenticated()
-        )
-        .addFilterBefore(new JwtAuthenticationFilter(jwtUtil),
-            UsernamePasswordAuthenticationFilter.class);
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(csrf -> csrf.disable())
+            .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                    // 公開路徑
+                    .requestMatchers("/api/v1/users/register", "/api/v1/users/login", "/api/v1/users/refresh-token").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/products/**", "/api/v1/categories/**").permitAll()
+                    // 管理員路徑
+                    .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                    // 需要認證的路徑
+                    .requestMatchers("/api/v1/users/**").authenticated()
+                    .requestMatchers("/api/v1/cart/**").authenticated()
+                    .requestMatchers("/api/v1/orders/**").authenticated()
+                    // 其他請求都需要認證
+                    .anyRequest().authenticated()
+            )
+            .addFilterBefore(new JwtAuthenticationFilter(jwtUtil),
+                    UsernamePasswordAuthenticationFilter.class);
 
     return http.build();
   }
@@ -50,14 +54,44 @@ public class SecurityConfig {
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(Arrays.asList("http://localhost:8080","http://192.168.226.1:8080","http://192.168.180.1:8080","http://192.168.43.90:8080")); // 前端的網址
-    configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-    configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
+    configuration.setAllowedOrigins(Arrays.asList(
+            "http://localhost:8080",
+            "http://192.168.226.1:8080",
+            "http://192.168.180.1:8080",
+            "http://192.168.43.90:8080"
+    ));
+    configuration.setAllowedMethods(Arrays.asList(
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "OPTIONS",
+            "PATCH"
+    ));
+    configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "X-Requested-With",
+            "Accept",
+            "Origin",
+            "Access-Control-Request-Method",
+            "Access-Control-Request-Headers"
+    ));
+    configuration.setExposedHeaders(Arrays.asList(
+            "Authorization",
+            "Access-Control-Allow-Origin",
+            "Access-Control-Allow-Credentials"
+    ));
     configuration.setAllowCredentials(true);
-    configuration.setExposedHeaders(Arrays.asList("Authorization")); // 如果需要在前端讀取 Authorization header
+    configuration.setMaxAge(3600L);
 
     UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
     source.registerCorsConfiguration("/**", configuration);
     return source;
+  }
+
+  @Bean
+  public BCryptPasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
   }
 }

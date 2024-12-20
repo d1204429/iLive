@@ -98,4 +98,13 @@ public class UserRepository {
 
     return findById(user.getUserId());
   }
+
+  public User findByPhoneNumber(String phoneNumber) {
+    String sql = "SELECT * FROM Users WHERE PhoneNumber = ?";
+    return jdbcTemplate.query(sql, userRowMapper, phoneNumber)
+            .stream()
+            .findFirst()
+            .orElse(null);
+  }
+
 }
