@@ -63,6 +63,10 @@ public class SecurityConfig {
                     ).permitAll()
                     // 管理員路徑
                     .requestMatchers("/api/v1/admin/**").hasRole("ADMIN")
+                    .requestMatchers("/api/v1/admin/products/**").permitAll()
+                    .requestMatchers("/api/v1/admin/promotions/**").permitAll()
+                    .requestMatchers("/api/v1/admin/product-promotions/**").permitAll()
+                    .requestMatchers("/api/v1/admin/order-promotions/**").permitAll()
                     // 需要認證的路徑
                     .requestMatchers("/api/v1/users/{userId}/**").authenticated()
                     .requestMatchers("/api/v1/cart/**").authenticated()
