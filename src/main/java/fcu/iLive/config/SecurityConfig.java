@@ -36,6 +36,9 @@ public class SecurityConfig {
             .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
             .requestMatchers("/api/v1/admin/products/**").permitAll()
+            .requestMatchers("/api/v1/admin/promotions/**").permitAll()  // 促銷活動管理
+            .requestMatchers("/api/v1/admin/product-promotions/**").permitAll()  // 商品促銷管理
+            .requestMatchers("/api/v1/admin/order-promotions/**").permitAll()  // 訂單促銷管理
             .requestMatchers("/api/v1/users/{id}").authenticated()
             .requestMatchers("/api/v1/cart/**").authenticated()
             .requestMatchers("/api/v1/orders/**").authenticated()

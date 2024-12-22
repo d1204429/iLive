@@ -1,6 +1,5 @@
 //促銷活動實體
 
-// src/main/java/fcu.iLive/model/promotion/Promotion.java
 package fcu.iLive.model.promotion;
 
 import lombok.Data;

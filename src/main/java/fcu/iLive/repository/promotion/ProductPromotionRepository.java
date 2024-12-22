@@ -1,5 +1,3 @@
-//促銷資料操作
-// src/main/java/fcu.iLive/repository/promotion/ProductPromotionRepository.java
 package fcu.iLive.repository.promotion;
 
 import fcu.iLive.model.promotion.ProductPromotion;
@@ -7,7 +5,6 @@ import java.math.BigDecimal;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
-
 import java.util.List;
 
 @Repository
@@ -28,13 +25,20 @@ public class ProductPromotionRepository {
    */
   public List<ProductPromotion> findByProductId(Integer productId) {
     String sql = """
-            SELECT pp.*, p.IsActive, p.StartDate, p.EndDate 
+            SELECT 
+                pp.*,
+                p.Title as PromotionTitle,
+                p.DiscountType,
+                p.DiscountValue,
+                p.StartDate,
+                p.EndDate
             FROM ProductPromotions pp
             JOIN Promotions p ON pp.PromotionID = p.PromotionID
             WHERE pp.ProductID = ?
             AND p.IsActive = TRUE
             AND CURRENT_TIMESTAMP BETWEEN p.StartDate AND p.EndDate
-        """;
+            ORDER BY pp.PromotionalPrice ASC
+            """;
 
     return jdbcTemplate.query(sql, (rs, rowNum) -> {
       ProductPromotion promotion = new ProductPromotion();
@@ -42,8 +46,46 @@ public class ProductPromotionRepository {
       promotion.setProductId(rs.getInt("ProductID"));
       promotion.setPromotionId(rs.getInt("PromotionID"));
       promotion.setPromotionalPrice(rs.getBigDecimal("PromotionalPrice"));
+      promotion.setPromotionTitle(rs.getString("PromotionTitle"));
+      promotion.setDiscountType(rs.getString("DiscountType"));
+      promotion.setDiscountValue(rs.getBigDecimal("DiscountValue"));
       return promotion;
     }, productId);
+  }
+
+  /**
+   * 查詢特定商品促銷記錄
+   *
+   * @param productPromotionId 商品促銷ID
+   * @return ProductPromotion 商品促銷資訊
+   */
+  public ProductPromotion findById(Integer productPromotionId) {
+    String sql = """
+            SELECT 
+                pp.*,
+                p.Title as PromotionTitle,
+                p.DiscountType,
+                p.DiscountValue
+            FROM ProductPromotions pp
+            JOIN Promotions p ON pp.PromotionID = p.PromotionID
+            WHERE pp.ProductPromotionID = ?
+            """;
+
+    try {
+      return jdbcTemplate.queryForObject(sql, (rs, rowNum) -> {
+        ProductPromotion promotion = new ProductPromotion();
+        promotion.setProductPromotionId(rs.getInt("ProductPromotionID"));
+        promotion.setProductId(rs.getInt("ProductID"));
+        promotion.setPromotionId(rs.getInt("PromotionID"));
+        promotion.setPromotionalPrice(rs.getBigDecimal("PromotionalPrice"));
+        promotion.setPromotionTitle(rs.getString("PromotionTitle"));
+        promotion.setDiscountType(rs.getString("DiscountType"));
+        promotion.setDiscountValue(rs.getBigDecimal("DiscountValue"));
+        return promotion;
+      }, productPromotionId);
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   /**
@@ -57,7 +99,7 @@ public class ProductPromotionRepository {
             INSERT INTO ProductPromotions 
             (ProductID, PromotionID, PromotionalPrice)
             VALUES (?, ?, ?)
-        """;
+            """;
 
     jdbcTemplate.update(sql,
         productPromotion.getProductId(),
@@ -75,12 +117,7 @@ public class ProductPromotionRepository {
    * @param newPrice 新的優惠價格
    */
   public void updatePrice(Integer productPromotionId, BigDecimal newPrice) {
-    String sql = """
-            UPDATE ProductPromotions 
-            SET PromotionalPrice = ? 
-            WHERE ProductPromotionID = ?
-        """;
-
+    String sql = "UPDATE ProductPromotions SET PromotionalPrice = ? WHERE ProductPromotionID = ?";
     jdbcTemplate.update(sql, newPrice, productPromotionId);
   }
 

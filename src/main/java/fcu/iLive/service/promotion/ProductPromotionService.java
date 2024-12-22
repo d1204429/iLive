@@ -3,15 +3,21 @@ package fcu.iLive.service.promotion;
 import fcu.iLive.model.product.Product;
 import fcu.iLive.model.promotion.ProductPromotion;
 import fcu.iLive.model.promotion.Promotion;
+import fcu.iLive.repository.product.ProductRepository;
 import fcu.iLive.repository.promotion.ProductPromotionRepository;
+import fcu.iLive.service.product.ProductService;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
 public class ProductPromotionService {
 
@@ -21,120 +27,187 @@ public class ProductPromotionService {
   @Autowired
   private PromotionService promotionService;
 
+  @Autowired
+  private ProductRepository productRepository;
+
   /**
    * 查詢商品的所有有效優惠
-   *
-   * @param productId 商品ID
-   * @return List<ProductPromotion> 商品優惠列表
    */
-  public List<ProductPromotion> getProductPromotions(Integer productId) {
+  public List<ProductPromotion> getProductPromotions(int productId) {
     return productPromotionRepository.findByProductId(productId);
   }
 
   /**
+   * 取得上架商品列表(含優惠價)
+   */
+  public List<Map<String, Object>> getAllActiveProductsWithPrices() {
+    List<Product> products = productRepository.findAllActive();
+    return convertToProductsWithPrices(products);
+  }
+
+  /**
+   * 取得單一商品(含優惠價)
+   */
+  public Map<String, Object> getProductWithPrice(int productId) {
+    Product product = productRepository.findById(productId);
+    if (product == null) {
+      return null;
+    }
+    return appendProductPrice(product);
+  }
+
+  /**
+   * 取得分類商品列表(含優惠價)
+   */
+  public List<Map<String, Object>> getProductsByCategoryWithPrices(int categoryId) {
+    List<Product> products = productRepository.findByCategory(categoryId);
+    return convertToProductsWithPrices(products);
+  }
+
+  /**
+   * 商品搜尋(含優惠價)
+   */
+  public List<Map<String, Object>> searchProductsWithPrices(String keyword, BigDecimal minPrice,
+      BigDecimal maxPrice) {
+    List<Product> products = productRepository.search(keyword, minPrice, maxPrice);
+    return convertToProductsWithPrices(products);
+  }
+
+  /**
    * 新增商品優惠
-   *
-   * @param productPromotion 商品優惠資訊
-   * @return Integer 新商品優惠ID
    */
   @Transactional
-  public Integer createProductPromotion(ProductPromotion productPromotion) {
-    validatePromotionalPrice(productPromotion.getPromotionalPrice());
+  public int createProductPromotion(ProductPromotion productPromotion) {
+    validateProductPromotion(productPromotion);
+
+    Product product = productRepository.findById(productPromotion.getProductId());
+    if (product == null) {
+      throw new IllegalArgumentException("找不到指定商品");
+    }
+    BigDecimal originalPrice = product.getPrice();
+
+    Promotion promotion = promotionService.getPromotionById(productPromotion.getPromotionId());
+    if (promotion == null) {
+      throw new IllegalArgumentException("找不到指定的促銷活動");
+    }
+
+    BigDecimal promotionalPrice = calculatePromotionalPrice(originalPrice, promotion);
+    productPromotion.setPromotionalPrice(promotionalPrice);
+
     return productPromotionRepository.create(productPromotion);
   }
 
   /**
-   * 更新商品優惠價格
-   *
-   * @param productPromotionId 商品優惠ID
-   * @param newPrice          新優惠價格
-   */
-  @Transactional
-  public void updatePromotionalPrice(Integer productPromotionId, BigDecimal newPrice) {
-    validatePromotionalPrice(newPrice);
-    productPromotionRepository.updatePrice(productPromotionId, newPrice);
-  }
-
-  /**
    * 刪除商品優惠
-   *
-   * @param productPromotionId 商品優惠ID
    */
   @Transactional
-  public void deleteProductPromotion(Integer productPromotionId) {
+  public void deleteProductPromotion(int productPromotionId) {
     productPromotionRepository.delete(productPromotionId);
   }
 
   /**
-   * 計算商品的價格資訊
-   *
-   * @param product 商品
-   * @return Map 價格資訊，包含原價和優惠價等
+   * 添加商品相關優惠價格
    */
-  public Map<String, Object> calculatePrices(Product product) {
-    Map<String, Object> priceInfo = new HashMap<>();
-    BigDecimal originalPrice = product.getPrice();
+  private Map<String, Object> appendProductPrice(Product product) {
+    Map<String, Object> productInfo = new HashMap<>();
+    try {
+      productInfo.put("productId", product.getProductId());
+      productInfo.put("name", product.getName());
+      productInfo.put("description", product.getDescription());
+      productInfo.put("imageUrl", product.getImageUrl());
+      productInfo.put("categoryId", product.getCategoryId());
+      productInfo.put("brand", product.getBrand());
+      productInfo.put("availableStock", product.getAvailableStock());
 
-    // 設置基本價格資訊
-    priceInfo.put("originalPrice", originalPrice);
+      BigDecimal originalPrice = product.getPrice();
+      if (originalPrice == null || originalPrice.compareTo(BigDecimal.ZERO) <= 0) {
+        throw new IllegalStateException("商品" + product.getProductId() + "的價格無效");
+      }
+      productInfo.put("originalPrice", originalPrice);
 
-    // 取得商品優惠
-    List<ProductPromotion> promotions = getProductPromotions(product.getProductId());
+      List<ProductPromotion> promotions = getProductPromotions(product.getProductId());
 
-    if (promotions.isEmpty()) {
-      priceInfo.put("hasPromotion", false);
-      priceInfo.put("promotionalPrice", originalPrice);
-      priceInfo.put("discountAmount", BigDecimal.ZERO);
-      priceInfo.put("promotionTitle", null);
-      priceInfo.put("promotionEndDate", null);
-      priceInfo.put("promotionId", null);
-      return priceInfo;
+      if (!promotions.isEmpty()) {
+        try {
+          BigDecimal promotionalPrice = promotions.stream()
+              .map(ProductPromotion::getPromotionalPrice)
+              .filter(price -> price != null && price.compareTo(BigDecimal.ZERO) > 0)
+              .filter(price -> price.compareTo(originalPrice) <= 0)
+              .min(BigDecimal::compareTo)
+              .orElse(originalPrice);
+
+          if (promotionalPrice.compareTo(originalPrice.multiply(new BigDecimal("0.1"))) < 0) {
+            promotionalPrice = originalPrice.multiply(new BigDecimal("0.1"));
+          }
+
+          productInfo.put("promotionalPrice", promotionalPrice);
+        } catch (Exception e) {
+          productInfo.put("promotionalPrice", originalPrice);
+        }
+      } else {
+        productInfo.put("promotionalPrice", originalPrice);
+      }
+
+    } catch (Exception e) {
+      log.error("計算商品{}的價格時發生錯誤: {}", product.getProductId(), e.getMessage());
+      productInfo.put("originalPrice", product.getPrice());
+      productInfo.put("promotionalPrice", product.getPrice());
     }
 
-    // 取得最低優惠價格的促銷
-    ProductPromotion bestPromotion = promotions.stream()
-        .min((p1, p2) -> p1.getPromotionalPrice().compareTo(p2.getPromotionalPrice()))
-        .get();
-
-    // 取得優惠活動資訊
-    Promotion promotionInfo = promotionService.getPromotionById(bestPromotion.getPromotionId());
-
-    // 設置優惠資訊
-    priceInfo.put("hasPromotion", true);
-    priceInfo.put("promotionalPrice", bestPromotion.getPromotionalPrice());
-    priceInfo.put("promotionId", promotionInfo.getPromotionId());
-    priceInfo.put("promotionTitle", promotionInfo.getTitle());
-    priceInfo.put("promotionEndDate", promotionInfo.getEndDate());
-    priceInfo.put("discountAmount", originalPrice.subtract(bestPromotion.getPromotionalPrice()));
-
-    return priceInfo;
+    return productInfo;
   }
 
   /**
-   * 批量計算多個商品的價格資訊
-   *
-   * @param products 商品列表
-   * @return Map 商品ID對應的價格資訊
+   * 轉換商品列表價格資訊
    */
-  public Map<Integer, Map<String, Object>> calculateBulkPrices(List<Product> products) {
-    Map<Integer, Map<String, Object>> allPrices = new HashMap<>();
-
+  private List<Map<String, Object>> convertToProductsWithPrices(List<Product> products) {
+    List<Map<String, Object>> result = new ArrayList<>();
     for (Product product : products) {
-      allPrices.put(product.getProductId(), calculatePrices(product));
+      result.add(appendProductPrice(product));
     }
-
-    return allPrices;
+    return result;
   }
 
   /**
-   * 驗證優惠價格
-   *
-   * @param price 優惠價格
-   * @throws IllegalArgumentException 當價格不合理時
+   * 計算優惠價格
    */
-  private void validatePromotionalPrice(BigDecimal price) {
-    if (price == null || price.compareTo(BigDecimal.ZERO) <= 0) {
-      throw new IllegalArgumentException("優惠價格必須大於零");
+  private BigDecimal calculatePromotionalPrice(BigDecimal originalPrice, Promotion promotion) {
+    try {
+      BigDecimal calculatedPrice;
+
+      if ("PERCENTAGE".equals(promotion.getDiscountType())) {
+        BigDecimal discountRate = promotion.getDiscountValue()
+            .divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP);
+        calculatedPrice = originalPrice.multiply(BigDecimal.ONE.subtract(discountRate));
+      } else if ("FIXED_AMOUNT".equals(promotion.getDiscountType())) {
+        calculatedPrice = originalPrice.subtract(promotion.getDiscountValue());
+      } else {
+        throw new IllegalArgumentException("不支援的折扣類型: " + promotion.getDiscountType());
+      }
+
+      BigDecimal minimumPrice = originalPrice.multiply(new BigDecimal("0.1"));
+      calculatedPrice = calculatedPrice.max(minimumPrice);
+      calculatedPrice = calculatedPrice.min(originalPrice);
+
+      return calculatedPrice.setScale(2, RoundingMode.HALF_UP);
+    } catch (Exception e) {
+      log.error("計算優惠價格時發生錯誤", e);
+      return originalPrice;
+    }
+  }
+
+  /**
+   * 驗證商品促銷基本資訊
+   */
+  private void validateProductPromotion(ProductPromotion productPromotion) {
+    if (productPromotion == null) {
+      throw new IllegalArgumentException("商品促銷資訊不能為空");
+    }
+    if (productPromotion.getProductId() <= 0) {
+      throw new IllegalArgumentException("無效的商品ID");
+    }
+    if (productPromotion.getPromotionId() <= 0) {
+      throw new IllegalArgumentException("無效的促銷活動ID");
     }
   }
 }
