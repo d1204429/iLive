@@ -2,22 +2,22 @@
 
 package fcu.iLive.model.promotion;
 
-import fcu.iLive.model.product.Product;
-import java.math.BigDecimal;
-import lombok.AllArgsConstructor;
+import java.time.LocalDateTime;
 import lombok.Data;
-import lombok.NoArgsConstructor;
+import java.math.BigDecimal;
 
 @Data
-@AllArgsConstructor
-@NoArgsConstructor
 public class ProductPromotion {
-  private int productPromotionId;     // ProductPromotionID INT
-  private int productId;              // ProductID INT
-  private int promotionId;            // PromotionID INT
-  private BigDecimal promotionalPrice;// PromotionalPrice DECIMAL(10,2)
-  private Product product;            // 關聯對象
-  private Promotion promotion;        // 關聯對象
+  private int productPromotionId;
+  private int productId;
+  private int promotionId;
+  private BigDecimal promotionalPrice;
 
-  // Constructor, Getters and Setters
+  // 以下是從 Promotion 表關聯查詢出來的資料
+  private String promotionTitle;      // 促銷活動標題
+  private String discountType;        // 折扣類型
+  private BigDecimal discountValue;   // 折扣值
+  private LocalDateTime startDate;    // 活動開始時間
+  private LocalDateTime endDate;      // 活動結束時間
+
 }
