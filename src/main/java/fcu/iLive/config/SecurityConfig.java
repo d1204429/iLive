@@ -33,7 +33,7 @@ public class SecurityConfig {
         .csrf(csrf -> csrf.disable())
         .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
         .authorizeHttpRequests(auth -> auth
-            .requestMatchers("/api/v1/users/register", "/api/v1/users/login").permitAll()
+            .requestMatchers("/api/v1/users/register", "/api/v1/users/login","/api/v1/admin/register","/api/v1/admin/login").permitAll()
             .requestMatchers(HttpMethod.GET, "/api/v1/products/**").permitAll()
             .requestMatchers("/api/v1/admin/products/**").permitAll()
             .requestMatchers("/api/v1/admin/promotions/**").permitAll()  // 促銷活動管理

@@ -26,32 +26,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       HttpServletResponse response,
       FilterChain filterChain) throws ServletException, IOException {
 
-    // 從請求標頭中獲取Authorization
     String authHeader = request.getHeader("Authorization");
 
     if (authHeader != null && authHeader.startsWith("Bearer ")) {
-      // 解析Token
       String token = jwtUtil.getTokenFromHeader(authHeader);
-
-      // 從Token中獲取用戶ID
       int userId = jwtUtil.getUserIdFromToken(token);
 
-      // 驗證Token有效性
       if (userId != 0 && !jwtUtil.isTokenExpired(token)) {
-        // 創建認證對象，將用戶ID轉為字串以符合Spring Security的要求
+        // 根據請求路徑判斷是管理員還是一般用戶
+        if (request.getRequestURI().startsWith("/api/v1/admin")) {
+          request.setAttribute("adminId", userId);
+        } else {
+          request.setAttribute("userId", userId);
+        }
+
         UsernamePasswordAuthenticationToken authentication =
             new UsernamePasswordAuthenticationToken(
-                String.valueOf(userId),  // 將userId轉為字串
+                String.valueOf(userId),
                 null,
                 new ArrayList<>()
             );
 
-        // 設置安全上下文
         SecurityContextHolder.getContext().setAuthentication(authentication);
       }
     }
 
-    // 繼續過濾鏈的處理
     filterChain.doFilter(request, response);
   }
 }

@@ -145,4 +145,15 @@ public class JwtUtil {
   public void setRefreshTokenExpiration(Long refreshTokenExpiration) {
     this.refreshTokenExpiration = refreshTokenExpiration;
   }
+
+  // 僅檢查令牌基本有效性
+  public boolean validateToken(String token) {
+    try {
+      getAllClaimsFromToken(token);
+      return !isTokenExpired(token);
+    } catch (JwtException e) {
+      return false;
+    }
+  }
+
 }
