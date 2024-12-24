@@ -53,7 +53,7 @@ public class SecurityConfig {
   @Bean
   public CorsConfigurationSource corsConfigurationSource() {
     CorsConfiguration configuration = new CorsConfiguration();
-    configuration.setAllowedOrigins(Arrays.asList("http://localhost:8080","http://192.168.226.1:8080","http://192.168.180.1:8080","http://192.168.43.90:8080")); // 前端的網址
+    configuration.setAllowedOrigins(Arrays.asList("http://localhost:8080","http://localhost:9567","http://192.168.226.1:8080","http://192.168.180.1:8080","http://192.168.43.90:8080")); // 前端的網址
     configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
     configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type"));
     configuration.setAllowCredentials(true);
