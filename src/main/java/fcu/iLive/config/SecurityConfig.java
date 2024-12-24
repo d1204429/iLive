@@ -26,122 +26,125 @@ import static org.springframework.security.config.http.SessionCreationPolicy.STA
 @EnableWebSecurity
 public class SecurityConfig {
 
-    private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
+  private static final Logger logger = LoggerFactory.getLogger(SecurityConfig.class);
 
-    @Autowired
-    private JwtUtil jwtUtil;
+  @Autowired
+  private JwtUtil jwtUtil;
 
-    @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
-        http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        // 靜態資源和錯誤頁面
-                        .requestMatchers(
-                                "/",
-                                "/static/**",
-                                "/images/**",
-                                "/favicon.ico",
-                                "/error"
-                        ).permitAll()
-                        // 公開API路徑
-                        .requestMatchers(
-                                "/api/v1/users/register",
-                                "/api/v1/users/login",
-                                "/api/v1/users/refresh-token",
-                                "/api/v1/users/logout"
-                        ).permitAll()
-                        // 產品相關公開路徑
-                        .requestMatchers(HttpMethod.GET,
-                                "/api/v1/products/**",
-                                "/api/v1/categories/**",
-                                "/api/v1/promotions/**",
-                                "/products/**",
-                                "/categories/**"
-                        ).permitAll()
-                        // 管理員路徑
-                        .requestMatchers(
-                                "/api/v1/admin/products/**",
-                                "/api/v1/admin/promotions/**",
-                                "/api/v1/admin/product-promotions/**",
-                                "/api/v1/admin/order-promotions/**"
-                        ).permitAll()
-                        // 需要認證的路徑
-                        .requestMatchers("/api/v1/users/{userId}/**").authenticated()
-                        .requestMatchers("/api/v1/cart/**").authenticated()
-                        .requestMatchers("/api/v1/orders/**").authenticated()
-                        // 其他請求需要認證
-                        .anyRequest().authenticated()
-                )
-                .addFilterBefore(
-                        new JwtAuthenticationFilter(jwtUtil),
-                        UsernamePasswordAuthenticationFilter.class
-                )
-                .exceptionHandling(exceptions -> exceptions
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            logger.error("Unauthorized error: {}", authException.getMessage());
-                            response.setStatus(401);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"message\":\"未授權訪問\",\"status\":\"error\"}");
-                        })
-                        .accessDeniedHandler((request, response, accessDeniedException) -> {
-                            logger.error("Access denied error: {}", accessDeniedException.getMessage());
-                            response.setStatus(403);
-                            response.setContentType("application/json;charset=UTF-8");
-                            response.getWriter().write("{\"message\":\"拒絕訪問\",\"status\":\"error\"}");
-                        })
-                );
+  @Bean
+  public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    http
+        .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+        .csrf(AbstractHttpConfigurer::disable)
+        .sessionManagement(session -> session.sessionCreationPolicy(STATELESS))
+        .authorizeHttpRequests(auth -> auth
+            // Static resources and error pages
+            .requestMatchers(
+                "/",
+                "/static/**",
+                "/images/**",
+                "/favicon.ico",
+                "/error"
+            ).permitAll()
+            // Public API endpoints
+            .requestMatchers(
+                "/api/v1/users/register",
+                "/api/v1/users/login",
+                "/api/v1/users/refresh-token",
+                "/api/v1/users/logout",
+                "/api/v1/admin/register",
+                "/api/v1/admin/login"
+            ).permitAll()
+            // Public product-related endpoints
+            .requestMatchers(HttpMethod.GET,
+                "/api/v1/products/**",
+                "/api/v1/categories/**",
+                "/api/v1/promotions/**",
+                "/products/**",
+                "/categories/**"
+            ).permitAll()
+            // Admin endpoints
+            .requestMatchers(
+                "/api/v1/admin/products/**",
+                "/api/v1/admin/promotions/**",
+                "/api/v1/admin/product-promotions/**",
+                "/api/v1/admin/order-promotions/**"
+            ).permitAll()
+            // Authenticated endpoints
+            .requestMatchers("/api/v1/users/{userId}/**").authenticated()
+            .requestMatchers("/api/v1/cart/**").authenticated()
+            .requestMatchers("/api/v1/orders/**").authenticated()
+            // All other requests require authentication
+            .anyRequest().authenticated()
+        )
+        .addFilterBefore(
+            new JwtAuthenticationFilter(jwtUtil),
+            UsernamePasswordAuthenticationFilter.class
+        )
+        .exceptionHandling(exceptions -> exceptions
+            .authenticationEntryPoint((request, response, authException) -> {
+              logger.error("Unauthorized error: {}", authException.getMessage());
+              response.setStatus(401);
+              response.setContentType("application/json;charset=UTF-8");
+              response.getWriter().write("{\"message\":\"未授權訪問\",\"status\":\"error\"}");
+            })
+            .accessDeniedHandler((request, response, accessDeniedException) -> {
+              logger.error("Access denied error: {}", accessDeniedException.getMessage());
+              response.setStatus(403);
+              response.setContentType("application/json;charset=UTF-8");
+              response.getWriter().write("{\"message\":\"拒絕訪問\",\"status\":\"error\"}");
+            })
+        );
 
-        return http.build();
-    }
+    return http.build();
+  }
 
-    @Bean
-    public CorsConfigurationSource corsConfigurationSource() {
-        CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:8080",
-                "http://192.168.226.1:8080",
-                "http://192.168.180.1:8080",
-                "http://192.168.43.90:8080"
-        ));
-        configuration.setAllowedMethods(Arrays.asList(
-                "GET",
-                "POST",
-                "PUT",
-                "DELETE",
-                "OPTIONS",
-                "PATCH"
-        ));
-        configuration.setAllowedHeaders(Arrays.asList(
-                "Authorization",
-                "Content-Type",
-                "X-Requested-With",
-                "Accept",
-                "Origin",
-                "Access-Control-Request-Method",
-                "Access-Control-Request-Headers",
-                "Cache-Control"
-        ));
-        configuration.setExposedHeaders(Arrays.asList(
-                "Authorization",
-                "Access-Control-Allow-Origin",
-                "Access-Control-Allow-Credentials",
-                "Access-Control-Allow-Methods",
-                "Access-Control-Allow-Headers",
-                "Access-Control-Max-Age"
-        ));
-        configuration.setAllowCredentials(true);
-        configuration.setMaxAge(3600L);
+  @Bean
+  public CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration configuration = new CorsConfiguration();
+    configuration.setAllowedOrigins(Arrays.asList(
+        "http://localhost:8080",
+        "http://localhost:9567",
+        "http://192.168.226.1:8080",
+        "http://192.168.180.1:8080",
+        "http://192.168.43.90:8080"
+    ));
+    configuration.setAllowedMethods(Arrays.asList(
+        "GET",
+        "POST",
+        "PUT",
+        "DELETE",
+        "OPTIONS",
+        "PATCH"
+    ));
+    configuration.setAllowedHeaders(Arrays.asList(
+        "Authorization",
+        "Content-Type",
+        "X-Requested-With",
+        "Accept",
+        "Origin",
+        "Access-Control-Request-Method",
+        "Access-Control-Request-Headers",
+        "Cache-Control"
+    ));
+    configuration.setExposedHeaders(Arrays.asList(
+        "Authorization",
+        "Access-Control-Allow-Origin",
+        "Access-Control-Allow-Credentials",
+        "Access-Control-Allow-Methods",
+        "Access-Control-Allow-Headers",
+        "Access-Control-Max-Age"
+    ));
+    configuration.setAllowCredentials(true);
+    configuration.setMaxAge(3600L);
 
-        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
-        source.registerCorsConfiguration("/**", configuration);
-        return source;
-    }
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/**", configuration);
+    return source;
+  }
 
-    @Bean
-    public BCryptPasswordEncoder passwordEncoder() {
-        return new BCryptPasswordEncoder();
-    }
+  @Bean
+  public BCryptPasswordEncoder passwordEncoder() {
+    return new BCryptPasswordEncoder();
+  }
 }
