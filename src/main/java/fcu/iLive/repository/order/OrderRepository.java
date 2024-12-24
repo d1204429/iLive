@@ -236,4 +236,21 @@ public class OrderRepository {
         rs.getTimestamp("CreatedAt").toLocalDateTime() : null);
     return order;
   }
+
+
+  // 驗證使用者是否有購買過此商品且訂單狀態為已送達或已退貨
+  public boolean hasUserPurchasedProduct(int userId, int productId) {
+    String sql = """
+            SELECT COUNT(*) > 0 
+            FROM Orders o 
+            JOIN OrderItems oi ON o.OrderID = oi.OrderID 
+            WHERE o.UserID = ? 
+            AND oi.ProductID = ? 
+            AND o.StatusID IN (4, 6)  -- 已送達(4)或已退貨(6)
+        """;
+
+    return Boolean.TRUE.equals(
+        jdbcTemplate.queryForObject(sql, Boolean.class, userId, productId)
+    );
+  }
 }

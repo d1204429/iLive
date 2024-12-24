@@ -16,10 +16,11 @@ public class Review {
   private int productId;              // ProductID INT
   private int userId;                 // UserID INT
   private double rating;              // Rating DOUBLE
-  private String comment;             // Comment TEXT
+  private String comment;             // Comment VARCHAR(500)
   private LocalDateTime createdAt;    // CreatedAt DATETIME
+  private LocalDateTime updatedAt;    // UpdatedAt DATETIME
+  private boolean isDeleted;          // IsDeleted BOOLEAN
+  private LocalDateTime deletedAt;    // DeletedAt DATETIME
   private Product product;            // 關聯對象
   private User user;                  // 關聯對象
-
-  // Constructor, Getters and Setters
 }
