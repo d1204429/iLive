@@ -63,17 +63,15 @@ public class SecurityConfig {
                                 "/products/**",
                                 "/categories/**"
                         ).permitAll()
-                        // 新增允許訪問的促銷API端點
+                        // 促銷相關端點
                         .requestMatchers(
-                                "/api/v1/admin/product-promotions/products/promotional",
-                                "/api/v1/admin/product-promotions/products",
-                                "/api/v1/admin/promotions"
+                                "/api/v1/admin/promotions/**",
+                                "/api/v1/admin/product-promotions/**",
+                                "/api/v1/admin/product-promotions/products/**"
                         ).permitAll()
                         // 管理員端點
                         .requestMatchers(
                                 "/api/v1/admin/products/**",
-                                "/api/v1/admin/promotions/**",
-                                "/api/v1/admin/product-promotions/**",
                                 "/api/v1/admin/order-promotions/**"
                         ).permitAll()
                         // 需要認證的端點
