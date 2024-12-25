@@ -1,15 +1,14 @@
-// 商品促銷管理 Controller
 package fcu.iLive.controller.admin;
 
 import fcu.iLive.model.promotion.ProductPromotion;
 import fcu.iLive.service.promotion.ProductPromotionService;
-import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 @RestController
 @RequestMapping("/api/v1/admin/product-promotions")
 public class ProductPromotionController {
@@ -22,10 +21,36 @@ public class ProductPromotionController {
    */
   @GetMapping("/product/{productId}")
   public ResponseEntity<List<ProductPromotion>> getProductPromotions(
-      @PathVariable("productId") int productId) {
+          @PathVariable("productId") int productId) {
     try {
       List<ProductPromotion> promotions = productPromotionService.getProductPromotions(productId);
       return new ResponseEntity<>(promotions, HttpStatus.OK);
+    } catch (Exception e) {
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * 取得所有促銷商品
+   */
+  @GetMapping("/products/promotional")
+  public ResponseEntity<List<Map<String, Object>>> getPromotionalProducts() {
+    try {
+      List<Map<String, Object>> products = productPromotionService.getAllActiveProductsWithPrices();
+      return new ResponseEntity<>(products, HttpStatus.OK);
+    } catch (Exception e) {
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * 取得所有商品促銷
+   */
+  @GetMapping("/products")
+  public ResponseEntity<List<Map<String, Object>>> getAllProducts() {
+    try {
+      List<Map<String, Object>> products = productPromotionService.getAllActiveProductsWithPrices();
+      return new ResponseEntity<>(products, HttpStatus.OK);
     } catch (Exception e) {
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }
