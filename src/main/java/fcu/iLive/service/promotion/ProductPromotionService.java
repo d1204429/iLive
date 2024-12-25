@@ -158,6 +158,26 @@ public class ProductPromotionService {
   }
 
   /**
+   * 取得所有有效優惠商品
+   */
+  public List<Map<String, Object>> getActivePromotionProducts() {
+    // 1. 先取得所有有效優惠的商品ID
+    List<Integer> productIds = productPromotionRepository.findActivePromotionProductIds();
+
+    // 2. 用ID列表取得商品詳細資訊
+    List<Product> products = new ArrayList<>();
+    for (Integer productId : productIds) {
+      Product product = productRepository.findById(productId);
+      if (product != null) {
+        products.add(product);
+      }
+    }
+
+    // 3. 轉換成含優惠價格的商品資訊
+    return convertToProductsWithPrices(products);
+  }
+
+  /**
    * 轉換商品列表價格資訊
    */
   private List<Map<String, Object>> convertToProductsWithPrices(List<Product> products) {

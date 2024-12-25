@@ -33,6 +33,7 @@ public class AdminService {
   public static final int PERMISSION_MANAGE_PROMOTIONS = 8;
   public static final int PERMISSION_ACTIVATE_ACCOUNTS = 16;
   public static final int PERMISSION_VIEW_DASHBOARD = 32;
+  public static final int PERMISSION_MANAGE_DELIVERY = 64;
 
   /**
    * 管理員註冊

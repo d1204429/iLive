@@ -32,6 +32,19 @@ public class ProductPromotionController {
   }
 
   /**
+   * 取得所有有效優惠商品
+   */
+  @GetMapping("/products/promotional")
+  public ResponseEntity<List<Map<String, Object>>> getActivePromotionProducts() {
+    try {
+      List<Map<String, Object>> products = productPromotionService.getActivePromotionProducts();
+      return new ResponseEntity<>(products, HttpStatus.OK);
+    } catch (Exception e) {
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
    * 新增商品優惠
    */
   @PostMapping

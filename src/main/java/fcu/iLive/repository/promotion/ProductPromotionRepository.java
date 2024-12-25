@@ -89,6 +89,27 @@ public class ProductPromotionRepository {
   }
 
   /**
+   * 查詢所有有效優惠商品ID
+   * 條件：
+   * 1. 商品必須有關聯的優惠活動
+   * 2. 優惠活動狀態為啟用
+   * 3. 當前時間在優惠期間內
+   */
+  public List<Integer> findActivePromotionProductIds() {
+    String sql = """
+            SELECT DISTINCT p.ProductID
+            FROM Products p
+            JOIN ProductPromotions pp ON p.ProductID = pp.ProductID
+            JOIN Promotions prom ON pp.PromotionID = prom.PromotionID
+            WHERE prom.IsActive = TRUE
+                AND CURRENT_TIMESTAMP BETWEEN prom.StartDate AND prom.EndDate
+            ORDER BY p.ProductID
+            """;
+
+    return jdbcTemplate.queryForList(sql, Integer.class);
+  }
+
+  /**
    * 新增商品優惠
    *
    * @param productPromotion 商品優惠資訊
