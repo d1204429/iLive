@@ -67,4 +67,21 @@ public class ProductService {
     Product product = productRepository.findById(productId);
     return product != null ? product.getAvailableStock() : 0;
   }
+
+  /**
+   * 取得推薦商品列表
+   * @return 推薦商品列表
+   */
+  public List<Product> getRecommendedProducts() {
+    return productRepository.findRecommendedProducts();
+  }
+
+  /**
+   * 更新推薦商品列表
+   * @param productIds 商品ID列表
+   */
+  @Transactional
+  public void updateRecommendedProducts(List<Integer> productIds) {
+    productRepository.updateRecommendedProducts(productIds);
+  }
 }

@@ -19,6 +19,7 @@ public class UserProductController {
 
   @Autowired
   private ProductPromotionService productPromotionService;
+  private ProductService productService;
 
   /**
    * 取得上架商品列表（含優惠價格）
@@ -45,6 +46,32 @@ public class UserProductController {
       } else {
         return new ResponseEntity<>(HttpStatus.NOT_FOUND);
       }
+    } catch (Exception e) {
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * 取得推薦商品列表
+   */
+  @GetMapping("/recommendations")
+  public ResponseEntity<List<Product>> getRecommendedProducts() {
+    try {
+      List<Product> recommendations = productService.getRecommendedProducts();
+      return new ResponseEntity<>(recommendations, HttpStatus.OK);
+    } catch (Exception e) {
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * 更新推薦商品列表
+   */
+  @PostMapping("/recommendations")
+  public ResponseEntity<Void> updateRecommendedProducts(@RequestBody List<Integer> productIds) {
+    try {
+      productService.updateRecommendedProducts(productIds);
+      return new ResponseEntity<>(HttpStatus.OK);
     } catch (Exception e) {
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }

@@ -1,6 +1,7 @@
 package fcu.iLive.repository.product;
 
 import fcu.iLive.model.product.Product;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -227,5 +228,35 @@ public class ProductRepository {
   public boolean hasEnoughStock(int productId, int quantity) {
     Product product = findById(productId);
     return product != null && product.getAvailableStock() >= quantity;
+  }
+
+  /**
+   * 取得推薦商品列表
+   * @return 推薦商品列表
+   */
+  public List<Product> findRecommendedProducts() {
+    String sql = "SELECT p.* FROM Products p " +
+        "INNER JOIN RecommendedProducts rp ON p.ProductID = rp.ProductID " +
+        "WHERE p.Status = 1 " +
+        "ORDER BY rp.RecommendID ASC";
+    return jdbcTemplate.query(sql, this::mapRowToProduct);
+  }
+
+  /**
+   * 更新推薦商品列表
+   * @param productIds 商品ID列表
+   */
+  public void updateRecommendedProducts(List<Integer> productIds) {
+    // 清空推薦表
+    jdbcTemplate.update("DELETE FROM RecommendedProducts");
+
+    // 插入新的推薦
+    if (!productIds.isEmpty()) {
+      String insertSql = "INSERT INTO RecommendedProducts (ProductID) VALUES (?)";
+      List<Object[]> batchArgs = productIds.stream()
+          .map(id -> new Object[]{id})
+          .collect(Collectors.toList());
+      jdbcTemplate.batchUpdate(insertSql, batchArgs);
+    }
   }
 }
