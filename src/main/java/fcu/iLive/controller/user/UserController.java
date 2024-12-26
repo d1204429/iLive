@@ -61,7 +61,34 @@ public class UserController {
     }
   }
 
-  @PostMapping("/refresh-token")
+  @GetMapping("/profile")
+  public ResponseEntity<?> getProfile(@RequestAttribute("userId") Integer userId) {
+    try {
+      logger.info("Fetching profile for user ID: {}", userId);
+      User user = userService.getUserById(userId);
+      return ResponseEntity.ok(user);
+    } catch (Exception e) {
+      logger.error("Failed to fetch profile for user ID: {}", userId, e);
+      return ResponseEntity.status(HttpStatus.NOT_FOUND)
+              .body(Map.of("message", e.getMessage()));
+    }
+  }
+
+  @PutMapping("/profile")
+  public ResponseEntity<?> updateProfile(
+          @RequestAttribute("userId") Integer userId,
+          @RequestBody User user) {
+    try {
+      logger.info("Updating profile for user ID: {}", userId);
+      user.setUserId(userId); // 確保使用正確的userId
+      User updatedUser = userService.updateUser(userId, user);
+      return ResponseEntity.ok(updatedUser);
+    } catch (Exception e) {
+      logger.error("Failed to update profile for user ID: {}", userId, e);
+      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+              .body(Map.of("message", e.getMessage()));
+    }
+  }@PostMapping("/refresh-token")
   public ResponseEntity<?> refreshToken(@RequestBody Map<String, String> refreshRequest) {
     try {
       String refreshToken = refreshRequest.get("refreshToken");
@@ -77,33 +104,6 @@ public class UserController {
     } catch (Exception e) {
       logger.error("Token refresh failed", e);
       return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-              .body(Map.of("message", e.getMessage()));
-    }
-  }
-
-  @GetMapping("/{userId}")
-  public ResponseEntity<?> getUser(@PathVariable int userId) {
-    try {
-      logger.info("Fetching user info for ID: {}", userId);
-      User user = userService.getUserById(userId);
-      return ResponseEntity.ok(user);
-    } catch (Exception e) {
-      logger.error("Failed to fetch user info for ID: {}", userId, e);
-      return ResponseEntity.status(HttpStatus.NOT_FOUND)
-              .body(Map.of("message", e.getMessage()));
-    }
-  }
-
-  @PutMapping("/{userId}")
-  public ResponseEntity<?> updateUser(@PathVariable int userId, @RequestBody User user) {
-    try {
-      logger.info("Updating user info for ID: {}", userId);
-      User updatedUser = userService.updateUser(userId, user);
-      logger.info("User info updated successfully for ID: {}", userId);
-      return ResponseEntity.ok(updatedUser);
-    } catch (Exception e) {
-      logger.error("Failed to update user info for ID: {}", userId, e);
-      return ResponseEntity.status(HttpStatus.BAD_REQUEST)
               .body(Map.of("message", e.getMessage()));
     }
   }
@@ -134,14 +134,29 @@ public class UserController {
   }
 
   @PostMapping("/logout")
-  public ResponseEntity<?> logout() {
+  public ResponseEntity<?> logout(@RequestAttribute("userId") Integer userId) {
     try {
-      logger.info("User logout");
+      logger.info("User logout attempt for ID: {}", userId);
+      userService.logout(userId);
       return ResponseEntity.ok()
               .body(Map.of("message", "登出成功"));
     } catch (Exception e) {
-      logger.error("Logout failed", e);
+      logger.error("Logout failed for user ID: {}", userId, e);
       return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+              .body(Map.of("message", e.getMessage()));
+    }
+  }
+
+  @GetMapping("/{userId}/session")
+  public ResponseEntity<?> checkSession(@PathVariable int userId) {
+    try {
+      logger.info("Checking session for user ID: {}", userId);
+      boolean isValid = userService.checkSession(userId);
+      return ResponseEntity.ok()
+              .body(Map.of("isValid", isValid));
+    } catch (Exception e) {
+      logger.error("Session check failed for user ID: {}", userId, e);
+      return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
               .body(Map.of("message", e.getMessage()));
     }
   }

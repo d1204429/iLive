@@ -8,6 +8,8 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import jakarta.servlet.http.HttpSession;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -184,4 +186,51 @@ public class UserService {
     sanitizedUser.setUpdatedAt(user.getUpdatedAt());
     return sanitizedUser;
   }
+
+  @Autowired
+  private HttpSession session;
+
+  public boolean checkSession(int userId) {
+    logger.info("Checking session for user ID: {}", userId);
+
+    // Get current session
+    Object sessionUserId = session.getAttribute("userId");
+
+    // Check if session exists and matches the user ID
+    if (sessionUserId != null && ((Integer) sessionUserId) == userId) {
+      logger.debug("Valid session found for user: {}", userId);
+      return true;
+    }
+
+    logger.debug("No valid session found for user: {}", userId);
+    return false;
+  }
+
+  public void logout(Integer userId) {
+    logger.info("Processing logout for user ID: {}", userId);
+
+    try {
+      // Validate user exists
+      User user = userRepository.findById(userId);
+      if (user == null) {
+        logger.warn("Attempt to logout non-existent user: {}", userId);
+        throw new RuntimeException("使用者不存在");
+      }
+
+      // Clear session attributes
+      if (session != null) {
+        session.removeAttribute("userId");
+        session.removeAttribute("username");
+        session.invalidate();
+      }
+
+      // Additional cleanup if needed (e.g., removing tokens, etc.)
+      logger.info("User successfully logged out: {}", userId);
+
+    } catch (Exception e) {
+      logger.error("Error during logout for user {}: {}", userId, e.getMessage());
+      throw new RuntimeException("登出處理失敗");
+    }
+  }
+
 }
