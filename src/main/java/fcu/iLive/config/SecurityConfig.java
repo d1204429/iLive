@@ -53,15 +53,18 @@ public class SecurityConfig {
                 "/api/v1/users/refresh-token",
                 "/api/v1/users/logout",
                 "/api/v1/admin/register",
-                "/api/v1/admin/login"
+                "/api/v1/admin/login",
+                "/api/v1/products/recommendations"
             ).permitAll()
+
             // Public product-related endpoints
             .requestMatchers(HttpMethod.GET,
                 "/api/v1/products/**",
                 "/api/v1/categories/**",
                 "/api/v1/promotions/**",
                 "/products/**",
-                "/categories/**"
+                "/categories/**",
+                "/api/v1/products/recommendations"
             ).permitAll()
             // Admin endpoints
             .requestMatchers(
@@ -76,6 +79,8 @@ public class SecurityConfig {
             .requestMatchers("/api/v1/orders/**").authenticated()
             // All other requests require authentication
             .anyRequest().authenticated()
+
+
         )
         .addFilterBefore(
             new JwtAuthenticationFilter(jwtUtil),

@@ -1,6 +1,6 @@
 package fcu.iLive.controller.user;
 
-
+import lombok.extern.slf4j.Slf4j;
 import fcu.iLive.model.product.Product;
 import fcu.iLive.service.product.ProductService;
 import fcu.iLive.service.promotion.ProductPromotionService;
@@ -13,6 +13,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
+
+@Slf4j
 @RestController
 @RequestMapping("/api/v1/products")
 public class UserProductController {
@@ -73,6 +75,8 @@ public class UserProductController {
       productService.updateRecommendedProducts(productIds);
       return new ResponseEntity<>(HttpStatus.OK);
     } catch (Exception e) {
+      // 加入錯誤日誌
+      log.error("更新推薦商品時發生錯誤: ", e);
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
