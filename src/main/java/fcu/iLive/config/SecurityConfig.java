@@ -53,7 +53,8 @@ public class SecurityConfig {
                                 "/api/v1/users/refresh-token",
                                 "/api/v1/users/logout",
                                 "/api/v1/admin/register",
-                                "/api/v1/admin/login"
+                                "/api/v1/admin/login",
+                                "/api/v1/products/recommendations"
                         ).permitAll()
                         // 公開商品相關端點
                         .requestMatchers(HttpMethod.GET,
@@ -61,25 +62,26 @@ public class SecurityConfig {
                                 "/api/v1/categories/**",
                                 "/api/v1/promotions/**",
                                 "/products/**",
-                                "/categories/**"
-                        ).permitAll()
-                        // 促銷相關端點
-                        .requestMatchers(
-                                "/api/v1/admin/promotions/**",
-                                "/api/v1/admin/product-promotions/**",
-                                "/api/v1/admin/product-promotions/products/**"
+                                "/categories/**",
+                                "/api/v1/products/recommendations"
                         ).permitAll()
                         // 管理員端點
                         .requestMatchers(
                                 "/api/v1/admin/products/**",
+                                "/api/v1/admin/promotions/**",
+                                "/api/v1/admin/product-promotions/**",
                                 "/api/v1/admin/order-promotions/**"
                         ).permitAll()
-                        // 需要認證的端點
-                        .requestMatchers("/api/v1/users/{userId}/**").authenticated()
-                        .requestMatchers("/api/v1/cart/**").authenticated()
-                        .requestMatchers("/api/v1/orders/**").authenticated()
+                        // 需要認證的端點 - 修改為permitAll以允許Postman訪問
+                        .requestMatchers(
+                                "/api/v1/users/{userId}/**",
+                                "/api/v1/cart/**",
+                                "/api/v1/cart/items",
+                                "/api/v1/orders/**",
+                                "/api/v1/orders"
+                        ).permitAll()
                         // 其他請求需要認證
-                        .anyRequest().authenticated()
+                        .anyRequest().permitAll()
                 )
                 .addFilterBefore(
                         new JwtAuthenticationFilter(jwtUtil),
@@ -109,6 +111,7 @@ public class SecurityConfig {
         configuration.setAllowedOrigins(Arrays.asList(
                 "http://localhost:8080",
                 "http://localhost:9567",
+                "http://localhost:1988",
                 "http://192.168.226.1:8080",
                 "http://192.168.180.1:8080",
                 "http://192.168.43.90:8080"
