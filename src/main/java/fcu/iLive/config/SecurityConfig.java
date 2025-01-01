@@ -72,7 +72,8 @@ public class SecurityConfig {
                         // 管理員端點
                         .requestMatchers(
                                 "/api/v1/admin/products/**",
-                                "/api/v1/admin/order-promotions/**"
+                                "/api/v1/admin/order-promotions/**",
+                                "/api/v1/admin/accounts"
                         ).permitAll()
                         // 需要認證的端點
                         .requestMatchers("/api/v1/users/{userId}/**").authenticated()

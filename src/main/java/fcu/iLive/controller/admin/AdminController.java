@@ -7,6 +7,7 @@ import fcu.iLive.model.admin.AdminRole;
 import fcu.iLive.service.admin.AdminService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -63,9 +64,11 @@ public class AdminController {
    */
   @PostMapping("/accounts/{id}/activate")
   public ResponseEntity<?> activateAccount(
-      @PathVariable int id,
-      @RequestAttribute("adminId") int operatorId) {
+      @PathVariable int id) {
+        //,@RequestAttribute("adminId") int operatorId
     try {
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int operatorId = Integer.parseInt(auth.getPrincipal().toString());
       adminService.activateAccount(id, operatorId);
       return ResponseEntity.ok()
           .body(Map.of("message", "帳號已啟用"));
@@ -86,9 +89,11 @@ public class AdminController {
    */
   @PostMapping("/accounts/{id}/disable")
   public ResponseEntity<?> disableAccount(
-      @PathVariable int id,
-      @RequestAttribute("adminId") int operatorId) {
+      @PathVariable int id) {
+        //,@RequestAttribute("adminId") int operatorId
     try {
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int operatorId = Integer.parseInt(auth.getPrincipal().toString());
       adminService.disableAccount(id, operatorId);
       return ResponseEntity.ok()
           .body(Map.of("message", "帳號已註銷"));
@@ -183,8 +188,11 @@ public class AdminController {
    * 獲取所有管理員列表
    */
   @GetMapping("/accounts")
-  public ResponseEntity<?> getAllAdmins(@RequestAttribute("adminId") int operatorId) {
+  public ResponseEntity<?> getAllAdmins() {
+    //@RequestAttribute("adminId") int operatorId
     try {
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int operatorId = Integer.parseInt(auth.getPrincipal().toString());
       // 檢查是否有查看權限
       if (!adminService.hasPermission(operatorId, AdminService.PERMISSION_MANAGE_USERS)) {
         return ResponseEntity.status(403)
