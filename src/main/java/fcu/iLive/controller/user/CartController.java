@@ -6,8 +6,10 @@ import fcu.iLive.model.cart.ShoppingCart;
 import fcu.iLive.service.cart.CartService;
 import fcu.iLive.util.JwtUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -68,19 +70,19 @@ public class CartController {
   /**
    * 添加商品到購物車
    * @param request 包含商品ID和數量的請求體
-   * @param httpRequest HTTP請求對象
    * @return 添加成功返回200 OK，失敗返回400
    */
   @PostMapping("/items/add")
   public ResponseEntity<?> addToCart(
-      @RequestBody CartItemRequest request,
-      HttpServletRequest httpRequest) {
+      @RequestBody CartItemRequest request) {
     try {
-      int userId = getUserIdFromRequest(httpRequest);
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+
       cartService.addToCart(userId, request.getProductId(), request.getQuantity());
       return ResponseEntity.ok().build();
     } catch (Exception e) {
-      return ResponseEntity.badRequest().body(e.getMessage());
+      return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
     }
   }
 

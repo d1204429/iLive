@@ -35,6 +35,9 @@ public class XssRequestWrapper extends HttpServletRequestWrapper {
   @Override
   public String getHeader(String name) {
     String value = super.getHeader(name);
+    if ("Authorization".equals(name)) {
+      return value; // 不處理 Authorization header
+    }
     return XssUtils.sanitize(value);
   }
 }

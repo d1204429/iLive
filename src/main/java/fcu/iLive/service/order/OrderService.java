@@ -220,7 +220,7 @@ public class OrderService {
     for (StockLock lock : expiredLocks) {
       productRepository.releaseLockedStock(lock.getProductId(), lock.getLockedQuantity());
       if (lock.getOrderId() > 0) {
-        orderRepository.updateStatus(lock.getOrderId(), 4); // 更新為已取消
+        orderRepository.updateStatus(lock.getOrderId(), 7); // 更新為未付款取消
       }
     }
   }
@@ -252,7 +252,7 @@ public class OrderService {
   private void completePayment(Order order, String paymentMethod) {
     // 1. 更新付款方式、訂單狀態和付款時間
     orderRepository.updatePaymentMethod(order.getOrderId(), paymentMethod);
-    orderRepository.updateStatus(order.getOrderId(), 3); // 已付款狀態
+    orderRepository.updateStatus(order.getOrderId(), 2); // 已付款狀態
     orderRepository.updateOrderDate(order.getOrderId()); // 更新付款時間
 
     // 2. 處理庫存

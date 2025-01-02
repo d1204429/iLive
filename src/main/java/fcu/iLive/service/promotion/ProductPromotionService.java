@@ -136,6 +136,7 @@ public class ProductPromotionService {
               .min(BigDecimal::compareTo)
               .orElse(originalPrice);
 
+
           if (promotionalPrice.compareTo(originalPrice.multiply(new BigDecimal("0.1"))) < 0) {
             promotionalPrice = originalPrice.multiply(new BigDecimal("0.1"));
           }
@@ -189,7 +190,7 @@ public class ProductPromotionService {
       calculatedPrice = calculatedPrice.max(minimumPrice);
       calculatedPrice = calculatedPrice.min(originalPrice);
 
-      return calculatedPrice.setScale(2, RoundingMode.HALF_UP);
+      return calculatedPrice.setScale(0, RoundingMode.HALF_UP);
     } catch (Exception e) {
       log.error("計算優惠價格時發生錯誤", e);
       return originalPrice;
