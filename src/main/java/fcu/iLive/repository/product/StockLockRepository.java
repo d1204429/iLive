@@ -1,9 +1,14 @@
 package fcu.iLive.repository.product;
 
 import fcu.iLive.model.product.StockLock;
+import fcu.iLive.model.product.StockLockStatus;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
+
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.List;
 
@@ -16,6 +21,24 @@ public class StockLockRepository {
 
   @Autowired
   private JdbcTemplate jdbcTemplate;
+
+  private final RowMapper<StockLock> stockLockRowMapper = new RowMapper<StockLock>() {
+    @Override
+    public StockLock mapRow(ResultSet rs, int rowNum) throws SQLException {
+      StockLock stockLock = new StockLock();
+      stockLock.setLockId(rs.getInt("LockId"));
+      stockLock.setProductId(rs.getInt("ProductId"));
+      stockLock.setUserId(rs.getInt("UserId"));
+      stockLock.setOrderId(rs.getInt("OrderId"));
+      stockLock.setLockedQuantity(rs.getInt("LockedQuantity"));
+      stockLock.setExpirationTime(rs.getTimestamp("ExpirationTime"));
+      stockLock.setValid(rs.getBoolean("IsValid"));
+      stockLock.setStatusId(rs.getInt("StatusId"));
+      stockLock.setCreatedAt(rs.getTimestamp("CreatedAt"));
+      stockLock.setUpdatedAt(rs.getTimestamp("UpdatedAt"));
+      return stockLock;
+    }
+  };
 
   /**
    * 新增庫存鎖定記錄
@@ -36,7 +59,7 @@ public class StockLockRepository {
         stockLock.getStatusId()
     );
 
-    return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", int.class);
+    return jdbcTemplate.queryForObject("SELECT LAST_INSERT_ID()", Integer.class);
   }
 
   /**
@@ -46,7 +69,7 @@ public class StockLockRepository {
    */
   public List<StockLock> findValidByProductId(int productId) {
     String sql = "SELECT * FROM StockLocks WHERE ProductId = ? AND IsValid = 1";
-    return jdbcTemplate.query(sql, this::mapRowToStockLock, productId);
+    return jdbcTemplate.query(sql, stockLockRowMapper, productId);
   }
 
   /**
@@ -56,8 +79,7 @@ public class StockLockRepository {
    * @return 更新的記錄數量
    */
   public int updateOrderStatus(int orderId, int statusId) {
-    String sql = "UPDATE StockLocks SET StatusId = ?, " +
-        "UpdatedAt = CURRENT_TIMESTAMP WHERE OrderId = ?";
+    String sql = "UPDATE StockLocks SET StatusId = ? WHERE OrderId = ?";
     return jdbcTemplate.update(sql, statusId, orderId);
   }
 
@@ -67,9 +89,9 @@ public class StockLockRepository {
    * @return 更新的記錄數量
    */
   public int invalidateExpiredLocks(Timestamp currentTime) {
-    String sql = "UPDATE StockLocks SET IsValid = 0, StatusId = 4, " +
-        "UpdatedAt = CURRENT_TIMESTAMP WHERE ExpirationTime < ? AND IsValid = 1";
-    return jdbcTemplate.update(sql, currentTime);
+    String sql = "UPDATE StockLocks SET IsValid = 0, StatusId = ? " +
+        "WHERE ExpirationTime < ? AND IsValid = 1";
+    return jdbcTemplate.update(sql, StockLockStatus.OVERDUED, currentTime);
   }
 
   /**
@@ -77,9 +99,9 @@ public class StockLockRepository {
    * @return 過期的鎖定記錄列表（最多100條）
    */
   public List<StockLock> findExpiredLocks() {
-    String sql = "SELECT * FROM StockLocks WHERE IsValid = 0 AND StatusId = 4 " +
+    String sql = "SELECT * FROM StockLocks WHERE IsValid = 0 AND StatusId = ? " +
         "ORDER BY UpdatedAt DESC LIMIT 100";
-    return jdbcTemplate.query(sql, this::mapRowToStockLock);
+    return jdbcTemplate.query(sql, stockLockRowMapper, StockLockStatus.OVERDUED);
   }
 
   /**
@@ -89,24 +111,6 @@ public class StockLockRepository {
    */
   public List<StockLock> findByOrderId(int orderId) {
     String sql = "SELECT * FROM StockLocks WHERE OrderId = ?";
-    return jdbcTemplate.query(sql, this::mapRowToStockLock, orderId);
-  }
-
-  /**
-   * ResultSet映射到StockLock物件
-   */
-  private StockLock mapRowToStockLock(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-    StockLock stockLock = new StockLock();
-    stockLock.setLockId(rs.getInt("LockId"));
-    stockLock.setProductId(rs.getInt("ProductId"));
-    stockLock.setUserId(rs.getInt("UserId"));
-    stockLock.setOrderId(rs.getInt("OrderId"));
-    stockLock.setLockedQuantity(rs.getInt("LockedQuantity"));
-    stockLock.setExpirationTime(rs.getTimestamp("ExpirationTime"));
-    stockLock.setValid(rs.getBoolean("IsValid"));
-    stockLock.setStatusId(rs.getInt("StatusId"));
-    stockLock.setCreatedAt(rs.getTimestamp("CreatedAt"));
-    stockLock.setUpdatedAt(rs.getTimestamp("UpdatedAt"));
-    return stockLock;
+    return jdbcTemplate.query(sql, stockLockRowMapper, orderId);
   }
 }

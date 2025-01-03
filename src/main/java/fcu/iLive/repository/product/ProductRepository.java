@@ -3,13 +3,17 @@ package fcu.iLive.repository.product;
 import fcu.iLive.model.product.Product;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.math.BigDecimal;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -23,6 +27,35 @@ public class ProductRepository {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  private final RowMapper<Product> productRowMapper = new RowMapper<Product>() {
+    @Override
+    public Product mapRow(ResultSet rs, int rowNum) throws SQLException {
+      Product product = new Product();
+      product.setProductId(rs.getInt("ProductID"));
+      product.setName(rs.getString("Name"));
+      product.setDescription(rs.getString("Description"));
+      product.setPrice(rs.getBigDecimal("Price"));
+      product.setStock(rs.getInt("Stock"));
+      product.setCategoryId(rs.getInt("CategoryID"));
+      product.setBrand(rs.getString("Brand"));
+      product.setImageUrl(rs.getString("ImageURL"));
+      product.setLockedStock(rs.getInt("LockedStock"));
+
+      Timestamp createdAt = rs.getTimestamp("CreatedAt");
+      if (createdAt != null) {
+        product.setCreatedAt(createdAt.toLocalDateTime());
+      }
+
+      Timestamp updatedAt = rs.getTimestamp("UpdatedAt");
+      if (updatedAt != null) {
+        product.setUpdatedAt(updatedAt.toLocalDateTime());
+      }
+
+      product.setStatus(rs.getInt("Status"));
+      return product;
+    }
+  };
+
   /**
    * 根據商品ID查詢商品資訊
    * @param productId 商品ID
@@ -30,13 +63,7 @@ public class ProductRepository {
    */
   public Product findById(int productId) {
     String sql = "SELECT * FROM Products WHERE ProductID = ?";
-
-    List<Product> products = jdbcTemplate.query(
-        sql,
-        this::mapRowToProduct,
-        productId
-    );
-
+    List<Product> products = jdbcTemplate.query(sql, productRowMapper, productId);
     return products.isEmpty() ? null : products.get(0);
   }
 
@@ -74,7 +101,7 @@ public class ProductRepository {
    */
   public List<Product> findAll() {
     String sql = "SELECT * FROM Products";
-    return jdbcTemplate.query(sql, this::mapRowToProduct);
+    return jdbcTemplate.query(sql, productRowMapper);
   }
 
   /**
@@ -83,7 +110,7 @@ public class ProductRepository {
    */
   public List<Product> findAllActive() {
     String sql = "SELECT * FROM Products WHERE Status = 1";
-    return jdbcTemplate.query(sql, this::mapRowToProduct);
+    return jdbcTemplate.query(sql, productRowMapper);
   }
 
   /**
@@ -91,8 +118,20 @@ public class ProductRepository {
    * @param product 待更新的商品實體
    */
   public void update(Product product) {
-    String sql = "UPDATE Products SET Name = ?, Description = ?, Price = ?, Stock = ?, " +
-        "CategoryID = ?, Brand = ?, ImageURL = ? WHERE ProductID = ?";
+    String sql = """
+        UPDATE Products 
+        SET Name = ?, 
+            Description = ?, 
+            Price = ?, 
+            Stock = ?, 
+            CategoryID = ?, 
+            Brand = ?, 
+            ImageURL = ?,
+            LockedStock = ?,
+            Status = ?,
+            UpdatedAt = CURRENT_TIMESTAMP 
+        WHERE ProductID = ?
+        """;
 
     jdbcTemplate.update(sql,
         product.getName(),
@@ -102,6 +141,7 @@ public class ProductRepository {
         product.getCategoryId(),
         product.getBrand(),
         product.getImageUrl(),
+        product.getLockedStock(),  // 新增這行
         product.getProductId());
   }
 
@@ -121,7 +161,7 @@ public class ProductRepository {
    */
   public List<Product> findByCategory(int categoryId) {
     String sql = "SELECT * FROM Products WHERE CategoryID = ?";
-    return jdbcTemplate.query(sql, this::mapRowToProduct, categoryId);
+    return jdbcTemplate.query(sql, productRowMapper, categoryId);
   }
 
   /**
@@ -152,43 +192,21 @@ public class ProductRepository {
       params.add(maxPrice);
     }
 
-    return jdbcTemplate.query(sql.toString(), this::mapRowToProduct, params.toArray());
+    return jdbcTemplate.query(sql.toString(), productRowMapper, params.toArray());
   }
 
-  /**
-   * 將資料庫查詢結果映射為商品實體
-   * @param rs 資料庫結果集
-   * @param rowNum 行號
-   * @return 商品實體
-   */
-  private Product mapRowToProduct(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-    Product product = new Product();
-    product.setProductId(rs.getInt("ProductID"));
-    product.setName(rs.getString("Name"));
-    product.setDescription(rs.getString("Description"));
-    product.setPrice(rs.getBigDecimal("Price"));
-    product.setStock(rs.getInt("Stock"));
-    product.setCategoryId(rs.getInt("CategoryID"));
-    product.setBrand(rs.getString("Brand"));
-    product.setImageUrl(rs.getString("ImageURL"));
-    product.setLockedStock(rs.getInt("LockedStock"));
-    product.setCreatedAt(rs.getTimestamp("CreatedAt") != null ?
-        rs.getTimestamp("CreatedAt").toLocalDateTime() : null);
-    product.setUpdatedAt(rs.getTimestamp("UpdatedAt") != null ?
-        rs.getTimestamp("UpdatedAt").toLocalDateTime() : null);
-    product.setStatus(rs.getInt("Status"));
-    return product;
-  }
-
-  /**
+    /**
    * 更新商品的庫存鎖定數量
    * @param productId 商品ID
-   * @param lockedStock 新的鎖定數量
+   * @param lockedStock 要增加的鎖定數量(正數增加/負數減少)
    */
   public void updateLockedStock(int productId, int lockedStock) {
-    String sql = "UPDATE Products SET LockedStock = ?, UpdatedAt = CURRENT_TIMESTAMP " +
-        "WHERE ProductID = ?";
-    jdbcTemplate.update(sql, lockedStock, productId);
+    String sql = "UPDATE Products SET LockedStock = LockedStock + ? WHERE ProductID = ?";
+    int updatedRows = jdbcTemplate.update(sql, lockedStock, productId);
+
+    if (updatedRows == 0) {
+      throw new RuntimeException("更新商品鎖定庫存失敗: ProductID=" + productId);
+    }
   }
 
   /**

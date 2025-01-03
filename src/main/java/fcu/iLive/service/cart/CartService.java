@@ -2,8 +2,10 @@ package fcu.iLive.service.cart;
 
 import fcu.iLive.model.cart.CartItems;
 import fcu.iLive.model.cart.ShoppingCart;
+import fcu.iLive.model.product.Product;
 import fcu.iLive.repository.cart.CartItemsRepository;
 import fcu.iLive.repository.cart.ShoppingCartRepository;
+import fcu.iLive.repository.product.ProductRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -19,6 +21,10 @@ public class CartService {
 
   @Autowired
   private CartItemsRepository cartItemsRepository;
+
+  @Autowired
+  private ProductRepository productRepository;  // 加入這行
+
 
   // 確保用戶有購物車並返回購物車ID
   private int ensureUserHasCart(int userId) {
@@ -36,11 +42,36 @@ public class CartService {
   // 添加商品到購物車
   @Transactional
   public void addToCart(int userId, int productId, int quantity) {
+    // 檢查商品庫存
+    Product product = productRepository.findById(productId);
+    if (product == null) {
+      throw new RuntimeException("商品不存在");
+    }
+
+    // 檢查可用庫存
+    if (product.getAvailableStock() < quantity) {
+      throw new RuntimeException(
+          String.format("商品「%s」庫存不足，剩餘%d件",
+              product.getName(),
+              product.getAvailableStock())
+      );
+    }
+
+    // 現有購物車項目檢查
     int cartId = ensureUserHasCart(userId);
     CartItems existingItem = cartItemsRepository.findByCartIdAndProductId(cartId, productId);
 
     if (existingItem != null) {
-      existingItem.setQuantity(existingItem.getQuantity() + quantity);
+      // 檢查增加數量後是否超過可用庫存
+      int newQuantity = existingItem.getQuantity() + quantity;
+      if (product.getAvailableStock() < newQuantity) {
+        throw new RuntimeException(
+            String.format("商品「%s」庫存不足，剩餘%d件",
+                product.getName(),
+                product.getAvailableStock())
+        );
+      }
+      existingItem.setQuantity(newQuantity);
       cartItemsRepository.update(existingItem);
     } else {
       CartItems newItem = new CartItems();

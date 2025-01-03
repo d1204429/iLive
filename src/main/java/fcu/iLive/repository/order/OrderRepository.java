@@ -1,23 +1,25 @@
 package fcu.iLive.repository.order;
 
 import fcu.iLive.model.order.Order;
+import fcu.iLive.model.order.OrderStatusConstants;
 import fcu.iLive.model.order.OrderItem;
-import fcu.iLive.model.order.OrderStatus;
-import fcu.iLive.model.product.Product;
-import fcu.iLive.model.user.User;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
 import org.springframework.stereotype.Repository;
 
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.List;
 
 /**
  * 訂單資料訪問層
- * 處理訂單相關的資料庫操作，包括基本CRUD及關聯查詢
+ * 處理訂單相關的資料庫操作，包含訂單狀態管理與庫存互動
  */
 @Repository
 public class OrderRepository {
@@ -25,23 +27,72 @@ public class OrderRepository {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  private final RowMapper<Order> orderRowMapper = new RowMapper<Order>() {
+    @Override
+    public Order mapRow(ResultSet rs, int rowNum) throws SQLException {
+      Order order = new Order();
+      order.setOrderId(rs.getInt("OrderId"));
+      order.setUserId(rs.getInt("UserId"));
+      order.setStatusId(rs.getInt("StatusId"));
+      order.setTotalAmount(rs.getBigDecimal("TotalAmount"));
+      order.setShippingAddress(rs.getString("ShippingAddress"));
+      order.setPaymentMethod(rs.getString("PaymentMethod"));
+
+      Timestamp orderDate = rs.getTimestamp("OrderDate");
+      if (orderDate != null) {
+        order.setOrderDate(orderDate.toLocalDateTime());
+      }
+
+      Timestamp createdAt = rs.getTimestamp("CreatedAt");
+      if (createdAt != null) {
+        order.setCreatedAt(createdAt.toLocalDateTime());
+      }
+
+      return order;
+    }
+  };
+
+  /**
+   * 根據訂單ID查詢訂單
+   * @param orderId 訂單ID
+   * @return 訂單實體
+   */
+  public Order findById(int orderId) {
+    String sql = "SELECT * FROM Orders WHERE OrderId = ?";
+    List<Order> orders = jdbcTemplate.query(sql, orderRowMapper, orderId);
+    return orders.isEmpty() ? null : orders.get(0);
+  }
+
+  /**
+   * 查詢用戶的所有訂單
+   * @param userId 用戶ID
+   * @return 訂單列表
+   */
+  public List<Order> findByUserId(int userId) {
+    String sql = "SELECT * FROM Orders WHERE UserId = ? ORDER BY CreatedAt DESC";
+    return jdbcTemplate.query(sql, orderRowMapper, userId);
+  }
+
   /**
    * 創建訂單
    * @param order 訂單實體
-   * @return 新創建的訂單ID
+   * @return 訂單ID
    */
   public int create(Order order) {
-    String sql = "INSERT INTO Orders (UserID, TotalAmount, ShippingAddress, StatusID, " +
-        "CreatedAt) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)";
-
+    String sql = """
+        INSERT INTO Orders 
+        (UserId, StatusId, TotalAmount, ShippingAddress, PaymentMethod, CreatedAt) 
+        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        """;
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
     jdbcTemplate.update(connection -> {
       PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
       ps.setInt(1, order.getUserId());
-      ps.setBigDecimal(2, order.getTotalAmount());
-      ps.setString(3, order.getShippingAddress());
-      ps.setInt(4, order.getStatusId());
+      ps.setInt(2, OrderStatusConstants.ORDERED); // 初始狀態為已下單
+      ps.setBigDecimal(3, order.getTotalAmount());
+      ps.setString(4, order.getShippingAddress());
+      ps.setString(5, order.getPaymentMethod());
       return ps;
     }, keyHolder);
 
@@ -49,208 +100,70 @@ public class OrderRepository {
   }
 
   /**
-   * 更新訂單付款時間
-   * @param orderId 訂單ID
-   */
-  public void updateOrderDate(int orderId) {
-    String sql = "UPDATE Orders SET OrderDate = CURRENT_TIMESTAMP WHERE OrderID = ?";
-    jdbcTemplate.update(sql, orderId);
-  }
-
-  /**
-   * 創建訂單項目
-   * @param items 訂單項目列表
-   */
-  public void createOrderItems(List<OrderItem> items) {
-    String sql = "INSERT INTO OrderItems (OrderID, ProductID, Quantity, Price, CreatedAt) " +
-        "VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)";
-
-    jdbcTemplate.batchUpdate(sql,
-        items,
-        items.size(),
-        (PreparedStatement ps, OrderItem item) -> {
-          ps.setInt(1, item.getOrderId());
-          ps.setInt(2, item.getProductId());
-          ps.setInt(3, item.getQuantity());
-          ps.setBigDecimal(4, item.getPrice());
-        });
-  }
-
-  /**
-   * 更新訂單付款方式
-   * @param orderId 訂單ID
-   * @param paymentMethod 付款方式
-   */
-  public void updatePaymentMethod(int orderId, String paymentMethod) {
-    String sql = "UPDATE Orders SET PaymentMethod = ? WHERE OrderID = ?";
-    jdbcTemplate.update(sql, paymentMethod, orderId);
-  }
-
-  /**
    * 更新訂單狀態
    * @param orderId 訂單ID
-   * @param statusId 狀態ID
+   * @param status 狀態值
    */
-  public void updateStatus(int orderId, int statusId) {
-    String sql = "UPDATE Orders SET StatusID = ? WHERE OrderID = ?";
-    jdbcTemplate.update(sql, statusId, orderId);
+  public void updateOrderStatus(int orderId, int status) {
+    String sql = "UPDATE Orders SET StatusId = ? WHERE OrderId = ?";
+    jdbcTemplate.update(sql, status, orderId);
   }
 
   /**
-   * 根據訂單ID查詢訂單
-   * 包含用戶信息、訂單狀態和訂單項目
-   * @param orderId 訂單ID
-   * @return 訂單實體
+   * 查詢過期未付款訂單
+   * @return 過期訂單列表
    */
-  public Order findById(int orderId) {
-    String sql = "SELECT o.*, u.Username, u.Email, u.FullName, u.PhoneNumber, u.Address, " +
-        "os.StatusName " +
-        "FROM Orders o " +
-        "LEFT JOIN Users u ON o.UserID = u.UserID " +
-        "LEFT JOIN OrderStatus os ON o.StatusID = os.StatusID " +
-        "WHERE o.OrderID = ?";
+  public List<Order> findExpiredUnpaidOrders() {
+    String sql = """
+      SELECT * FROM Orders 
+      WHERE StatusId = ? 
+      AND CreatedAt < DATE_SUB(NOW(), INTERVAL 30 MINUTE)
+      """;
+    return jdbcTemplate.query(sql, orderRowMapper, OrderStatusConstants.ORDERED);
+  }
 
-    List<Order> orders = jdbcTemplate.query(sql, (rs, rowNum) -> {
-      Order order = mapRowToOrder(rs, rowNum);
-
-      // 設置用戶信息
-      User user = new User();
-      user.setUserId(rs.getInt("UserID"));
-      user.setUsername(rs.getString("Username"));
-      user.setEmail(rs.getString("Email"));
-      user.setFullName(rs.getString("FullName"));
-      user.setPhoneNumber(rs.getString("PhoneNumber"));
-      user.setAddress(rs.getString("Address"));
-      order.setUser(user);
-
-      // 設置訂單狀態
-      OrderStatus status = new OrderStatus();
-      status.setStatusId(rs.getInt("StatusID"));
-      status.setStatusName(rs.getString("StatusName"));
-      order.setStatus(status);
-
-      return order;
-    }, orderId);
-
-    if (orders.isEmpty()) {
-      return null;
+  /**
+   * 批量更新過期訂單狀態
+   * @param orderIds 訂單ID列表
+   * @return 更新的記錄數
+   */
+  public int updateExpiredOrderStatus(List<Integer> orderIds) {
+    if (orderIds == null || orderIds.isEmpty()) {
+      return 0;
     }
 
-    Order order = orders.get(0);
-    order.setItems(findOrderItems(orderId));
-    return order;
+    String orderIdStr = String.join(",", orderIds.stream().map(String::valueOf).toList());
+    String sql = "UPDATE Orders SET StatusId = ?, UpdatedAt = CURRENT_TIMESTAMP WHERE OrderId IN (" + orderIdStr + ")";
+    return jdbcTemplate.update(sql, OrderStatusConstants.EXPIRED);
   }
 
   /**
-   * 查詢用戶的所有訂單
-   * 包含用戶信息、訂單狀態和訂單項目
+   * 檢查用戶是否購買過指定商品
    * @param userId 用戶ID
-   * @return 訂單列表
+   * @param productId 商品ID
+   * @return 是否購買過
    */
-  public List<Order> findByUserId(int userId) {
-    String sql = "SELECT o.*, u.Username, u.Email, u.FullName, u.PhoneNumber, u.Address, " +
-        "os.StatusName " +
-        "FROM Orders o " +
-        "LEFT JOIN Users u ON o.UserID = u.UserID " +
-        "LEFT JOIN OrderStatus os ON o.StatusID = os.StatusID " +
-        "WHERE o.UserID = ? " +
-        "ORDER BY o.CreatedAt DESC";
-
-    List<Order> orders = jdbcTemplate.query(sql, (rs, rowNum) -> {
-      Order order = mapRowToOrder(rs, rowNum);
-
-      // 設置用戶信息
-      User user = new User();
-      user.setUserId(rs.getInt("UserID"));
-      user.setUsername(rs.getString("Username"));
-      user.setEmail(rs.getString("Email"));
-      user.setFullName(rs.getString("FullName"));
-      user.setPhoneNumber(rs.getString("PhoneNumber"));
-      user.setAddress(rs.getString("Address"));
-      order.setUser(user);
-
-      // 設置訂單狀態
-      OrderStatus status = new OrderStatus();
-      status.setStatusId(rs.getInt("StatusID"));
-      status.setStatusName(rs.getString("StatusName"));
-      order.setStatus(status);
-
-      return order;
-    }, userId);
-
-    // 為每個訂單加載訂單項目
-    orders.forEach(order -> order.setItems(findOrderItems(order.getOrderId())));
-    return orders;
-  }
-
-  /**
-   * 查詢訂單的所有項目
-   * 包含商品信息
-   * @param orderId 訂單ID
-   * @return 訂單項目列表
-   */
-  private List<OrderItem> findOrderItems(int orderId) {
-    String sql = "SELECT oi.*, p.Name as ProductName, p.Price as ProductPrice " +
-        "FROM OrderItems oi " +
-        "LEFT JOIN Products p ON oi.ProductID = p.ProductID " +
-        "WHERE oi.OrderID = ?";
-
-    return jdbcTemplate.query(sql, (rs, rowNum) -> {
-      OrderItem item = new OrderItem();
-      item.setOrderItemId(rs.getInt("OrderItemID"));
-      item.setOrderId(rs.getInt("OrderID"));
-      item.setProductId(rs.getInt("ProductID"));
-      item.setQuantity(rs.getInt("Quantity"));
-      item.setPrice(rs.getBigDecimal("Price"));
-      item.setCreatedAt(rs.getTimestamp("CreatedAt") != null ?
-          rs.getTimestamp("CreatedAt").toLocalDateTime() : null);
-
-      // 設置商品信息
-      Product product = new Product();
-      product.setProductId(rs.getInt("ProductID"));
-      product.setName(rs.getString("ProductName"));
-      product.setPrice(rs.getBigDecimal("ProductPrice"));
-      item.setProduct(product);
-
-      return item;
-    }, orderId);
-  }
-
-  /**
-   * 將資料庫查詢結果映射為訂單實體
-   * @param rs 資料庫結果集
-   * @param rowNum 行號
-   * @return 訂單實體
-   */
-  private Order mapRowToOrder(java.sql.ResultSet rs, int rowNum) throws java.sql.SQLException {
-    Order order = new Order();
-    order.setOrderId(rs.getInt("OrderID"));
-    order.setUserId(rs.getInt("UserID"));
-    order.setOrderDate(rs.getTimestamp("OrderDate") != null ?
-        rs.getTimestamp("OrderDate").toLocalDateTime() : null);
-    order.setTotalAmount(rs.getBigDecimal("TotalAmount"));
-    order.setShippingAddress(rs.getString("ShippingAddress"));
-    order.setPaymentMethod(rs.getString("PaymentMethod"));
-    order.setStatusId(rs.getInt("StatusID"));
-    order.setCreatedAt(rs.getTimestamp("CreatedAt") != null ?
-        rs.getTimestamp("CreatedAt").toLocalDateTime() : null);
-    return order;
-  }
-
-
-  // 驗證使用者是否有購買過此商品且訂單狀態為已送達或已退貨
   public boolean hasUserPurchasedProduct(int userId, int productId) {
     String sql = """
-            SELECT COUNT(*) > 0 
-            FROM Orders o 
-            JOIN OrderItems oi ON o.OrderID = oi.OrderID 
-            WHERE o.UserID = ? 
-            AND oi.ProductID = ? 
-            AND o.StatusID IN (4, 6)  -- 已送達(4)或已退貨(6)
-        """;
+      SELECT COUNT(*) > 0 FROM Orders o
+      JOIN OrderItems oi ON o.OrderId = oi.OrderId 
+      WHERE o.UserId = ? AND oi.ProductId = ?
+      AND o.StatusId IN (?, ?)
+      """;
+    return Boolean.TRUE.equals(jdbcTemplate.queryForObject(sql,
+        Boolean.class,
+        userId, productId,
+        OrderStatusConstants.COMPLETED,
+        OrderStatusConstants.SHIPPED));
+  }
 
-    return Boolean.TRUE.equals(
-        jdbcTemplate.queryForObject(sql, Boolean.class, userId, productId)
-    );
+  /**
+   * 查詢指定狀態的訂單
+   * @param status 訂單狀態
+   * @return 訂單列表
+   */
+  public List<Order> findByStatus(int status) {
+    String sql = "SELECT * FROM Orders WHERE StatusId = ? ORDER BY CreatedAt DESC";
+    return jdbcTemplate.query(sql, orderRowMapper, status);
   }
 }
