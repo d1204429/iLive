@@ -21,29 +21,21 @@ iLive 是一個提供完整購物體驗的電商平台系統，包含前台購�
 - 前台處理一般用戶操作，如購物車、訂單、用戶資料等
 - 後台處理管理員操作，如商品管理、訂單管理、促銷管理等
 - 所有請求都會先經過 SecurityConfig 進行身份驗證
-
-2. **資料轉換 (DTO 層)**
-- 請求資料 (Request DTO):
-   - 接收前端傳來的資料，如 LoginRequest、CreateOrderRequest 等
-   - 進行基本的資料驗證和格式轉換
-- 響應資料 (Response DTO):
-   - 將處理結果轉換為前端所需格式
-   - 依據不同需求提供不同詳細程度的資料(如基本資料、詳細資料等)
-
-3. **業務邏輯 (Service 層)**
+  
+2. **業務邏輯 (Service 層)**
 - 實作核心業務邏輯，如：
    - UserService: 處理用戶註冊、資料更新等
    - OrderService: 處理訂單創建、狀態更新等
    - ProductService: 處理商品資訊維護
    - PromotionService: 處理促銷活動邏輯
 
-4. **資料存取 (Repository 層)**
+3. **資料存取 (Repository 層)**
 - 負責與資料庫的直接互動
 - 處理各種實體的 CRUD 操作
 - 提供資料查詢功能
 - 確保資料的持久化
 
-5. **資料模型 (Model 層)**
+4. **資料模型 (Model 層)**
 - 定義了系統中的核心實體：
    - 用戶相關：User、Role
    - 商品相關：Product、Category、Review
@@ -51,25 +43,23 @@ iLive 是一個提供完整購物體驗的電商平台系統，包含前台購�
    - 購物車：ShoppingCart
    - 促銷相關：Promotion、ProductPromotion、OrderPromotion
 
-6. **錯誤處理**
+5. **錯誤處理**
 - GlobalExceptionHandler 統一處理系統異常
 - BusinessException 處理業務邏輯異常
 - 確保系統能夠優雅地處理各種錯誤情況
 
-7. **安全機制**
+6. **安全機制**
 - SecurityConfig 配置安全規則
 - BCryptConfig 處理密碼加密
 - JwtConfig 和 JwtUtil 處理令牌相關邏輯
 
 典型的資料處理流程如下：
 1. 請求進入 Controller
-2. Controller 將請求數據轉換為 DTO
-3. 調用相應的 Service 處理業務邏輯
-4. Service 通過 Repository 訪問數據庫
-5. 將處理結果轉換為 Response DTO
-6. 返回給客戶端
+2. 調用相應的 Service 處理業務邏輯
+3. Service 通過 Repository 訪問數據庫
+4. 返回給客戶端
 
-整體架構遵循了關注點分離原則，每一層都有其特定的職責，使系統更容易維護和擴展。同時通過 DTO 模式實現了前後端數據的解耦，提高了系統的靈活性。
+整體架構遵循了關注點分離原則，每一層都有其特定的職責，使系統更容易維護和擴展。
 
 
 
