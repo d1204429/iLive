@@ -57,9 +57,12 @@ public class CartController {
    * @return 購物車中的商品列表
    */
   @GetMapping("/items")
-  public ResponseEntity<?> getCartItems(HttpServletRequest request) {
+  public ResponseEntity<?> getCartItems() {
+    //HttpServletRequest request
     try {
-      int userId = getUserIdFromRequest(request);
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+
       List<CartItems> items = cartService.getCartItems(userId);
       return ResponseEntity.ok(items);
     } catch (Exception e) {
@@ -96,10 +99,12 @@ public class CartController {
   @PutMapping("/items/{cartItemId}")
   public ResponseEntity<?> updateQuantity(
       @PathVariable int cartItemId,
-      @RequestBody CartItemRequest request,
-      HttpServletRequest httpRequest) {
+      @RequestBody CartItemRequest request) {
+        //,HttpServletRequest httpRequest
     try {
-      int userId = getUserIdFromRequest(httpRequest);
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+
       cartService.updateCartItemQuantity(userId, cartItemId, request.getQuantity());
       return ResponseEntity.ok().build();
     } catch (Exception e) {
@@ -115,10 +120,12 @@ public class CartController {
    */
   @DeleteMapping("/items/{cartItemId}")
   public ResponseEntity<?> removeCartItem(
-      @PathVariable int cartItemId,
-      HttpServletRequest request) {
+      @PathVariable int cartItemId) {
+        //,HttpServletRequest request
     try {
-      int userId = getUserIdFromRequest(request);
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+
       cartService.removeCartItem(userId, cartItemId);
       return ResponseEntity.ok().build();
     } catch (Exception e) {
@@ -134,10 +141,12 @@ public class CartController {
    */
   @DeleteMapping("/{cartId}")
   public ResponseEntity<?> clearCart(
-      @PathVariable int cartId,
-      HttpServletRequest request) {
+      @PathVariable int cartId) {
+        //,HttpServletRequest request
     try {
-      int userId = getUserIdFromRequest(request);
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+      
       cartService.clearCartItems(userId, cartId);
       return ResponseEntity.ok().build();
     } catch (Exception e) {
