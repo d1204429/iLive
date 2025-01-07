@@ -116,6 +116,7 @@ public class ProductPromotionService {
       productInfo.put("description", product.getDescription());
       productInfo.put("imageUrl", product.getImageUrl());
       productInfo.put("categoryId", product.getCategoryId());
+      productInfo.put("parentCategoryId", product.getParentCategoryId()); // 新增這行
       productInfo.put("brand", product.getBrand());
       productInfo.put("availableStock", product.getAvailableStock());
 
@@ -135,7 +136,6 @@ public class ProductPromotionService {
               .filter(price -> price.compareTo(originalPrice) <= 0)
               .min(BigDecimal::compareTo)
               .orElse(originalPrice);
-
 
           if (promotionalPrice.compareTo(originalPrice.multiply(new BigDecimal("0.1"))) < 0) {
             promotionalPrice = originalPrice.multiply(new BigDecimal("0.1"));

@@ -40,6 +40,7 @@ public class ProductRepository {
       product.setBrand(rs.getString("Brand"));
       product.setImageUrl(rs.getString("ImageURL"));
       product.setLockedStock(rs.getInt("LockedStock"));
+      product.setParentCategoryId(rs.getInt("ParentCategoryID"));
 
       Timestamp createdAt = rs.getTimestamp("CreatedAt");
       if (createdAt != null) {
@@ -62,7 +63,12 @@ public class ProductRepository {
    * @return 商品實體，若不存在則返回null
    */
   public Product findById(int productId) {
-    String sql = "SELECT * FROM Products WHERE ProductID = ?";
+    String sql = """
+        SELECT p.*, c.ParentCategoryID 
+        FROM Products p 
+        LEFT JOIN Categories c ON p.CategoryID = c.CategoryID 
+        WHERE p.ProductID = ?
+        """;
     List<Product> products = jdbcTemplate.query(sql, productRowMapper, productId);
     return products.isEmpty() ? null : products.get(0);
   }
@@ -100,7 +106,11 @@ public class ProductRepository {
    * @return 所有商品列表，包含上架和下架的商品
    */
   public List<Product> findAll() {
-    String sql = "SELECT * FROM Products";
+    String sql = """
+        SELECT p.*, c.ParentCategoryID 
+        FROM Products p 
+        LEFT JOIN Categories c ON p.CategoryID = c.CategoryID
+        """;
     return jdbcTemplate.query(sql, productRowMapper);
   }
 
@@ -109,7 +119,12 @@ public class ProductRepository {
    * @return 上架商品列表
    */
   public List<Product> findAllActive() {
-    String sql = "SELECT * FROM Products WHERE Status = 1";
+    String sql = """
+        SELECT p.*, c.ParentCategoryID 
+        FROM Products p 
+        LEFT JOIN Categories c ON p.CategoryID = c.CategoryID 
+        WHERE p.Status = 1
+        """;
     return jdbcTemplate.query(sql, productRowMapper);
   }
 
@@ -141,7 +156,8 @@ public class ProductRepository {
         product.getCategoryId(),
         product.getBrand(),
         product.getImageUrl(),
-        product.getLockedStock(),  // 新增這行
+        product.getLockedStock(),
+        product.getStatus(),
         product.getProductId());
   }
 
@@ -160,7 +176,12 @@ public class ProductRepository {
    * @return 該分類下的商品列表
    */
   public List<Product> findByCategory(int categoryId) {
-    String sql = "SELECT * FROM Products WHERE CategoryID = ?";
+    String sql = """
+        SELECT p.*, c.ParentCategoryID 
+        FROM Products p 
+        LEFT JOIN Categories c ON p.CategoryID = c.CategoryID 
+        WHERE p.CategoryID = ?
+        """;
     return jdbcTemplate.query(sql, productRowMapper, categoryId);
   }
 
@@ -172,30 +193,32 @@ public class ProductRepository {
    * @return 符合條件的商品列表
    */
   public List<Product> search(String keyword, BigDecimal minPrice, BigDecimal maxPrice) {
-    StringBuilder sql = new StringBuilder("SELECT * FROM Products WHERE 1=1");
+    StringBuilder sql = new StringBuilder(
+        "SELECT p.*, c.ParentCategoryID FROM Products p " +
+            "LEFT JOIN Categories c ON p.CategoryID = c.CategoryID WHERE 1=1");
     List<Object> params = new ArrayList<>();
 
     if (keyword != null && !keyword.trim().isEmpty()) {
-      sql.append(" AND (Name LIKE ? OR Description LIKE ?)");
+      sql.append(" AND (p.Name LIKE ? OR p.Description LIKE ?)");
       String searchPattern = "%" + keyword.trim() + "%";
       params.add(searchPattern);
       params.add(searchPattern);
     }
 
     if (minPrice != null) {
-      sql.append(" AND Price >= ?");
+      sql.append(" AND p.Price >= ?");
       params.add(minPrice);
     }
 
     if (maxPrice != null) {
-      sql.append(" AND Price <= ?");
+      sql.append(" AND p.Price <= ?");
       params.add(maxPrice);
     }
 
     return jdbcTemplate.query(sql.toString(), productRowMapper, params.toArray());
   }
 
-    /**
+  /**
    * 更新商品的庫存鎖定數量
    * @param productId 商品ID
    * @param lockedStock 要增加的鎖定數量(正數增加/負數減少)
@@ -217,8 +240,13 @@ public class ProductRepository {
    * @return 是否扣減成功
    */
   public boolean deductStock(int productId, int quantity) {
-    String sql = "UPDATE Products SET Stock = Stock - ?, LockedStock = LockedStock - ?, " +
-        "UpdatedAt = CURRENT_TIMESTAMP WHERE ProductID = ? AND Stock >= ? AND LockedStock >= ?";
+    String sql = """
+        UPDATE Products 
+        SET Stock = Stock - ?, 
+            LockedStock = LockedStock - ?, 
+            UpdatedAt = CURRENT_TIMESTAMP 
+        WHERE ProductID = ? AND Stock >= ? AND LockedStock >= ?
+        """;
     return jdbcTemplate.update(sql, quantity, quantity, productId, quantity, quantity) > 0;
   }
 
@@ -230,8 +258,12 @@ public class ProductRepository {
    * @return 是否釋放成功
    */
   public boolean releaseLockedStock(int productId, int quantity) {
-    String sql = "UPDATE Products SET LockedStock = LockedStock - ?, " +
-        "UpdatedAt = CURRENT_TIMESTAMP WHERE ProductID = ? AND LockedStock >= ?";
+    String sql = """
+        UPDATE Products 
+        SET LockedStock = LockedStock - ?, 
+            UpdatedAt = CURRENT_TIMESTAMP 
+        WHERE ProductID = ? AND LockedStock >= ?
+        """;
     return jdbcTemplate.update(sql, quantity, productId, quantity) > 0;
   }
 

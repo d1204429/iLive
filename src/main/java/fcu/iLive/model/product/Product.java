@@ -18,6 +18,7 @@ public class Product {
   private BigDecimal price;           // Price DECIMAL(10,2)
   private int stock;                  // Stock INT
   private int categoryId;             // CategoryID INT
+  private int parentCategoryId;       // ParentCategoryID INT
   private String brand;               // Brand VARCHAR(50)
   private String imageUrl;            // ImageURL VARCHAR(255)
   private LocalDateTime createdAt;    // CreatedAt DATETIME
@@ -25,6 +26,7 @@ public class Product {
   private int lockedStock;        // 鎖定庫存
   private int status;                 // Status TINYINT - 商品狀態：0=下架，1=上架
   private Category category;          // 關聯對象 關聯式資料庫設計僅在需要時才會使用
+
 
    // Constructor, Getters and Setters
 
