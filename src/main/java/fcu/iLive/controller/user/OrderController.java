@@ -169,12 +169,13 @@ public class OrderController {
    */
   @GetMapping("/{orderId}")
   public ResponseEntity<Map<String, Object>> getOrder(
-      @RequestHeader("Authorization") String token,
       @PathVariable int orderId) {
-
+        //@RequestHeader("Authorization") String token,
     Map<String, Object> response = new HashMap<>();
     try {
-      int userId = jwtUtil.getUserIdFromToken(token.substring(7));
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+      //int userId = jwtUtil.getUserIdFromToken(token.substring(7));
       Order order = orderService.getOrderById(orderId, userId);
 
       response.put("success", true);
