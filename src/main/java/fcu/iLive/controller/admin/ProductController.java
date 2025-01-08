@@ -5,16 +5,19 @@ package fcu.iLive.controller.admin;
 
 import fcu.iLive.model.product.Product;
 import fcu.iLive.service.product.ProductService;
+import java.util.HashMap;
+import java.util.Map;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
-
+@Slf4j
 @RestController
-//@RequestMapping("/api/v1/admin/products")  // 後台
-@RequestMapping("/products")  // 移除 /api/v1 前綴
+@RequestMapping("/api/v1/admin/products")  // 後台
+//@RequestMapping("/products")  // 移除 /api/v1 前綴
 public class ProductController {
 
   @Autowired
@@ -46,6 +49,30 @@ public class ProductController {
     }
   }
 
+  //更新商品庫存
+  @PutMapping("/{id}/stock")
+  public ResponseEntity<?> updateProductStock(@PathVariable("id") int productId,
+      @RequestBody Map<String, Integer> stock) {
+    try {
+      if (stock == null || !stock.containsKey("stock")) {
+        return ResponseEntity.badRequest()
+            .body(Map.of("message", "庫存數量不能為空"));
+      }
+
+      productService.updateProductStock(productId, stock.get("stock"));
+      return ResponseEntity.ok()
+          .body(Map.of("message", "庫存更新成功"));
+
+    } catch (RuntimeException e) {
+      return ResponseEntity.badRequest()
+          .body(Map.of("message", e.getMessage()));
+    } catch (Exception e) {
+      log.error("更新庫存時發生錯誤", e);
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(Map.of("message", "更新庫存時發生錯誤"));
+    }
+  }
+
   // 取得所有商品列表（後台管理用）
   @GetMapping
   public ResponseEntity<List<Product>> getAllProducts() {
@@ -70,6 +97,42 @@ public class ProductController {
     }
   }
 
+  @PutMapping("/{productId}/status")
+  public ResponseEntity<Map<String, Object>> updateProductStatus(
+      @PathVariable int productId,
+      @RequestParam(name = "status") int status) {
+    try {
+      // 驗證狀態值
+      if (status != 0 && status != 1) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", false);
+        response.put("message", "狀態值必須為 0（下架）或 1（上架）");
+        return ResponseEntity.badRequest().body(response);
+      }
+
+      productService.updateProductStatus(productId, status);
+      String statusMessage = status == 1 ? "上架" : "下架";
+
+      Map<String, Object> response = new HashMap<>();
+      response.put("success", true);
+      response.put("message", String.format("商品已成功%s", statusMessage));
+      return ResponseEntity.ok(response);
+    } catch (RuntimeException e) {
+      Map<String, Object> response = new HashMap<>();
+      response.put("success", false);
+      response.put("message", "找不到指定商品");
+      return ResponseEntity.status(HttpStatus.NOT_FOUND).body(response);
+    } catch (Exception e) {
+      log.error("更新商品狀態時發生錯誤", e);
+
+      Map<String, Object> response = new HashMap<>();
+      response.put("success", false);
+      response.put("message", "更新商品狀態時發生錯誤");
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
+    }
+  }
+
+
   // 刪除商品
   @DeleteMapping("/{id}")
   public ResponseEntity<Void> deleteProduct(@PathVariable("id") int productId) {
@@ -80,4 +143,6 @@ public class ProductController {
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
+
+
 }

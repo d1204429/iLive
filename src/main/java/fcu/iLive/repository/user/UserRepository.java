@@ -1,6 +1,7 @@
 package fcu.iLive.repository.user;
 
 import fcu.iLive.model.user.User;
+import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -105,6 +106,14 @@ public class UserRepository {
             .stream()
             .findFirst()
             .orElse(null);
+  }
+
+  /**
+   * 取得所有用戶
+   */
+  public List<User> findAll() {
+    String sql = "SELECT * FROM Users";
+    return jdbcTemplate.query(sql, userRowMapper);
   }
 
 }

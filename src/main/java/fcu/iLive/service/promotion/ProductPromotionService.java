@@ -31,6 +31,23 @@ public class ProductPromotionService {
   private ProductRepository productRepository;
 
   /**
+   * 取得特定活動的所有商品
+   */
+  public List<Map<String, Object>> getPromotionProducts(int promotionId) {
+    return productPromotionRepository.findProductsByPromotionId(promotionId);
+  }
+
+  /**
+   * 取得當前有效的優惠商品
+   * 條件：活動狀態為有效(IsActive=1)且在有效期間內的商品
+   */
+  public List<Map<String, Object>> getActivePromotionalProducts() {
+    return productPromotionRepository.findActivePromotionalProducts();
+  }
+
+
+
+  /**
    * 查詢商品的所有有效優惠
    */
   public List<ProductPromotion> getProductPromotions(int productId) {

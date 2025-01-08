@@ -3,8 +3,13 @@ package fcu.iLive.repository.order;
 import fcu.iLive.model.order.Order;
 import fcu.iLive.model.order.OrderStatusConstants;
 import fcu.iLive.model.order.OrderItem;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataAccessException;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
@@ -168,15 +173,232 @@ public class OrderRepository {
   }
 
   /**
-   * 查詢所有訂單及其詳細資訊
-   * @return 訂單列表
+   * 查詢訂單列表（基本資訊）
    */
   public List<Order> findAll() {
     String sql = """
-        SELECT * FROM Orders 
-        ORDER BY OrderId DESC, CreatedAt DESC
-        """;
+            SELECT o.*, u.Username, u.PhoneNumber, s.StatusName,
+                   oi.OrderItemID, oi.ProductID, oi.Quantity, oi.Price,
+                   p.Name as ProductName
+            FROM Orders o
+            LEFT JOIN Users u ON o.UserID = u.UserID
+            LEFT JOIN OrderStatus s ON o.StatusID = s.StatusID
+            LEFT JOIN OrderItems oi ON o.OrderID = oi.OrderID
+            LEFT JOIN Products p ON oi.ProductID = p.ProductID
+            ORDER BY o.OrderID DESC, o.CreatedAt DESC
+            """;
 
-    return jdbcTemplate.query(sql, orderRowMapper);
+    return jdbcTemplate.query(sql, new OrderListResultSetExtractor());
+  }
+
+  /**
+   * 管理員查詢訂單詳情（完整資訊）
+   * @param orderId 訂單ID
+   * @return 訂單詳細資訊
+   */
+  public Order findByIdForAdmin(int orderId) {
+    String sql = """
+            SELECT o.*, u.Username, u.PhoneNumber, u.Email, s.StatusName,
+                   oi.OrderItemID, oi.ProductID, oi.Quantity, oi.Price,
+                   p.Name as ProductName, p.Description, p.Brand
+            FROM Orders o
+            LEFT JOIN Users u ON o.UserID = u.UserID
+            LEFT JOIN OrderStatus s ON o.StatusID = s.StatusID
+            LEFT JOIN OrderItems oi ON o.OrderID = oi.OrderID
+            LEFT JOIN Products p ON oi.ProductID = p.ProductID
+            WHERE o.OrderID = ?
+            """;
+
+    return jdbcTemplate.query(sql, new OrderDetailResultSetExtractor(), orderId)
+        .stream()
+        .findFirst()
+        .orElse(null);
+  }
+
+  /**
+   * 管理員查詢訂單列表（基本資訊）
+   * @return 訂單列表
+   */
+  public List<Order> findAllForAdmin() {
+    String sql = """
+            SELECT o.*, u.Username, u.PhoneNumber, s.StatusName,
+                   oi.OrderItemID, oi.ProductID, oi.Quantity, oi.Price,
+                   p.Name as ProductName
+            FROM Orders o
+            LEFT JOIN Users u ON o.UserID = u.UserID
+            LEFT JOIN OrderStatus s ON o.StatusID = s.StatusID
+            LEFT JOIN OrderItems oi ON o.OrderID = oi.OrderID
+            LEFT JOIN Products p ON oi.ProductID = p.ProductID
+            ORDER BY o.OrderID DESC, o.CreatedAt DESC
+            """;
+
+    return jdbcTemplate.query(sql, new OrderListResultSetExtractor());
+  }
+
+
+  /**
+   * 訂單列表資料處理器（基本資訊）
+   */
+  private class OrderListResultSetExtractor implements ResultSetExtractor<List<Order>> {
+    @Override
+    public List<Order> extractData(ResultSet rs) throws SQLException, DataAccessException {
+      Map<Integer, Order> orderMap = new HashMap<>();
+
+      while (rs.next()) {
+        int orderId = rs.getInt("OrderID");
+
+        Order order = orderMap.computeIfAbsent(orderId, k -> {
+          try {
+            Order newOrder = new Order();
+            newOrder.setOrderId(orderId);
+            newOrder.setUserId(rs.getInt("UserID"));
+            newOrder.setStatusId(rs.getInt("StatusID"));
+            newOrder.setTotalAmount(rs.getBigDecimal("TotalAmount"));
+            newOrder.setShippingAddress(rs.getString("ShippingAddress"));
+            newOrder.setPaymentMethod(rs.getString("PaymentMethod"));
+
+            // 設置基本關聯資料
+            newOrder.setUserName(rs.getString("Username"));
+            newOrder.setUserPhone(rs.getString("PhoneNumber"));
+            newOrder.setStatusName(rs.getString("StatusName"));
+
+            newOrder.setItems(new ArrayList<>());
+
+            // 處理日期
+            Timestamp orderDate = rs.getTimestamp("OrderDate");
+            if (orderDate != null) {
+              newOrder.setOrderDate(orderDate.toLocalDateTime());
+            }
+
+            Timestamp createdAt = rs.getTimestamp("CreatedAt");
+            if (createdAt != null) {
+              newOrder.setCreatedAt(createdAt.toLocalDateTime());
+            }
+
+            return newOrder;
+          } catch (SQLException e) {
+            throw new RuntimeException("Error creating order object", e);
+          }
+        });
+
+        // 處理訂單項目（基本資訊）
+        int orderItemId = rs.getInt("OrderItemID");
+        if (!rs.wasNull() && orderItemId > 0) {
+          OrderItem item = new OrderItem();
+          item.setOrderItemId(orderItemId);
+          item.setOrderId(orderId);
+          item.setProductId(rs.getInt("ProductID"));
+          item.setQuantity(rs.getInt("Quantity"));
+          item.setPrice(rs.getBigDecimal("Price"));
+
+          // 商品名稱截斷處理
+          String productName = rs.getString("ProductName");
+          item.setProductName(truncateProductName(productName));
+
+          order.getItems().add(item);
+        }
+      }
+
+      return new ArrayList<>(orderMap.values());
+    }
+  }
+
+  /**
+   * 訂單詳情資料處理器（完整資訊）
+   */
+  private class OrderDetailResultSetExtractor implements ResultSetExtractor<List<Order>> {
+    @Override
+    public List<Order> extractData(ResultSet rs) throws SQLException, DataAccessException {
+      Map<Integer, Order> orderMap = new HashMap<>();
+
+      while (rs.next()) {
+        int orderId = rs.getInt("OrderID");
+
+        Order order = orderMap.computeIfAbsent(orderId, k -> {
+          try {
+            Order newOrder = new Order();
+            newOrder.setOrderId(orderId);
+            newOrder.setUserId(rs.getInt("UserID"));
+            newOrder.setStatusId(rs.getInt("StatusID"));
+            newOrder.setTotalAmount(rs.getBigDecimal("TotalAmount"));
+            newOrder.setShippingAddress(rs.getString("ShippingAddress"));
+            newOrder.setPaymentMethod(rs.getString("PaymentMethod"));
+
+            // 設置完整關聯資料
+            newOrder.setUserName(rs.getString("Username"));
+            newOrder.setUserPhone(rs.getString("PhoneNumber"));
+            newOrder.setUserEmail(rs.getString("Email"));
+            newOrder.setStatusName(rs.getString("StatusName"));
+
+            newOrder.setItems(new ArrayList<>());
+
+            // 處理日期
+            Timestamp orderDate = rs.getTimestamp("OrderDate");
+            if (orderDate != null) {
+              newOrder.setOrderDate(orderDate.toLocalDateTime());
+            }
+
+            Timestamp createdAt = rs.getTimestamp("CreatedAt");
+            if (createdAt != null) {
+              newOrder.setCreatedAt(createdAt.toLocalDateTime());
+            }
+
+            return newOrder;
+          } catch (SQLException e) {
+            throw new RuntimeException("Error creating order object", e);
+          }
+        });
+
+        // 處理訂單項目（完整資訊）
+        int orderItemId = rs.getInt("OrderItemID");
+        if (!rs.wasNull() && orderItemId > 0) {
+          OrderItem item = new OrderItem();
+          item.setOrderItemId(orderItemId);
+          item.setOrderId(orderId);
+          item.setProductId(rs.getInt("ProductID"));
+          item.setQuantity(rs.getInt("Quantity"));
+          item.setPrice(rs.getBigDecimal("Price"));
+          item.setProductName(rs.getString("ProductName"));
+          item.setProductSpec(rs.getString("Description"));  // 使用商品描述作為規格
+          order.getItems().add(item);
+        }
+      }
+
+      return new ArrayList<>(orderMap.values());
+    }
+  }
+
+  private String truncateProductName(String name) {
+    if (name == null) return "";
+
+    int len = 0;
+    for (int i = 0; i < name.length(); i++) {
+      len += name.charAt(i) > 255 ? 2 : 1;
+      if (len > 20) {
+        return name.substring(0, i) + "...";
+      }
+    }
+    return name;
+  }
+
+  /**
+   * 管理員依狀態查詢訂單（基本資訊）
+   */
+  public List<Order> findByStatusForAdmin(int status) {
+    String sql = """
+            SELECT o.*, u.Username, u.PhoneNumber, s.StatusName,
+                   oi.OrderItemID, oi.ProductID, oi.Quantity, oi.Price,
+                   p.Name as ProductName
+            FROM Orders o
+            LEFT JOIN Users u ON o.UserID = u.UserID
+            LEFT JOIN OrderStatus s ON o.StatusID = s.StatusID
+            LEFT JOIN OrderItems oi ON o.OrderID = oi.OrderID
+            LEFT JOIN Products p ON oi.ProductID = p.ProductID
+            WHERE o.StatusID = ?
+            ORDER BY o.OrderID DESC, o.CreatedAt DESC
+            """;
+
+    return jdbcTemplate.query(sql, new OrderListResultSetExtractor(), status);
   }
 }
+

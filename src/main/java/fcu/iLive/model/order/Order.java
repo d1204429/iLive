@@ -26,5 +26,10 @@ public class Order {
   // 關聯對象
   private User user;
   private OrderStatus status;
+  private String userName;     // Users表
+  private String userPhone;    // Users表
+  private String userEmail;    // Users表
+  private String statusName;   // OrderStatus表
+
   private List<OrderItem> items;
 }

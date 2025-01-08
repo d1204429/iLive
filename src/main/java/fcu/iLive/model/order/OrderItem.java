@@ -22,4 +22,7 @@ public class OrderItem {
 
   // 關聯對象
   private Product product;
+  // 關聯資料欄位
+  private String productName;   // Products表
+  private String productSpec;   // Products表
 }

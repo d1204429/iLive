@@ -3,11 +3,14 @@ package fcu.iLive.service.user;
 import fcu.iLive.model.user.User;
 import fcu.iLive.repository.user.UserRepository;
 import fcu.iLive.util.JwtUtil;
+import java.util.List;
+import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
 
 import java.util.HashMap;
 import java.util.Map;
@@ -16,6 +19,7 @@ import java.util.Map;
 public class UserService {
 
   private static final Logger logger = LoggerFactory.getLogger(UserService.class);
+
 
   @Autowired
   private UserRepository userRepository;
@@ -183,5 +187,37 @@ public class UserService {
     sanitizedUser.setCreatedAt(user.getCreatedAt());
     sanitizedUser.setUpdatedAt(user.getUpdatedAt());
     return sanitizedUser;
+  }
+
+  public List<User> getAllUsers() {
+    logger.info("Fetching all users");
+    List<User> users = userRepository.findAll();
+    return users.stream()
+        .map(this::sanitizeUser)
+        .collect(Collectors.toList());
+  }
+
+  public void adminResetPassword(int userId, String newPassword) {
+    logger.info("Admin resetting password for user ID: {}", userId);
+    User user = getUserById(userId);
+
+    if (newPassword == null || newPassword.trim().isEmpty()) {
+      throw new RuntimeException("新密碼不能為空");
+    }
+    if (newPassword.length() < 8) {
+      throw new RuntimeException("密碼長度至少需要8個字元");
+    }
+    if (!newPassword.matches(".*[A-Z].*")) {
+      throw new RuntimeException("密碼需要包含至少一個大寫字母");
+    }
+    if (!newPassword.matches(".*[a-z].*")) {
+      throw new RuntimeException("密碼需要包含至少一個小寫字母");
+    }
+    if (!newPassword.matches(".*\\d.*")) {
+      throw new RuntimeException("密碼需要包含至少一個數字");
+    }
+    user.setPasswordHash(passwordEncoder.encode(newPassword));
+    userRepository.update(user);
+    logger.info("Password reset successfully for user: {}", userId);
   }
 }

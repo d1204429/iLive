@@ -2,6 +2,7 @@ package fcu.iLive.repository.promotion;
 
 import fcu.iLive.model.promotion.ProductPromotion;
 import java.math.BigDecimal;
+import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -129,5 +130,33 @@ public class ProductPromotionRepository {
   public void delete(Integer productPromotionId) {
     String sql = "DELETE FROM ProductPromotions WHERE ProductPromotionID = ?";
     jdbcTemplate.update(sql, productPromotionId);
+  }
+
+  public List<Map<String, Object>> findProductsByPromotionId(int promotionId) {
+    String sql =
+        "SELECT p.*, pp.PromotionalPrice, pr.Title as PromotionTitle, " +
+            "pr.DiscountType, pr.DiscountValue, pr.StartDate, pr.EndDate, pr.IsActive " +
+            "FROM Products p " +
+            "INNER JOIN ProductPromotions pp ON p.ProductID = pp.ProductID " +
+            "INNER JOIN Promotions pr ON pp.PromotionID = pr.PromotionID " +
+            "WHERE pp.PromotionID = ? " +
+            "ORDER BY p.ProductID";
+
+    return jdbcTemplate.queryForList(sql, promotionId);
+  }
+
+  public List<Map<String, Object>> findActivePromotionalProducts() {
+    String sql =
+        "SELECT p.*, pp.PromotionalPrice, pr.Title as PromotionTitle, " +
+            "pr.DiscountType, pr.DiscountValue, pr.StartDate, pr.EndDate " +
+            "FROM Products p " +
+            "INNER JOIN ProductPromotions pp ON p.ProductID = pp.ProductID " +
+            "INNER JOIN Promotions pr ON pp.PromotionID = pr.PromotionID " +
+            "WHERE pr.IsActive = 1 " +
+            "AND pr.StartDate <= NOW() " +
+            "AND pr.EndDate >= NOW() " +
+            "ORDER BY p.ProductID";
+
+    return jdbcTemplate.queryForList(sql);
   }
 }

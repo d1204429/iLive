@@ -338,4 +338,99 @@ public class OrderService {
       orderRepository.updateExpiredOrderStatus(orderIds);
     }
   }
+
+  /**
+   * 獲取指定狀態的訂單列表
+   * 根據傳入的狀態代碼篩選訂單，並附帶訂單項目的詳細信息
+   *
+   * @param status 訂單狀態代碼
+   * @return List<Order> 符合狀態條件的訂單列表
+   */
+  public List<Order> getOrdersByStatus(int status) {
+    // 從資料庫獲取指定狀態的訂單
+    List<Order> orders = orderRepository.findByStatus(status);
+
+    // 為每個訂單加載其訂單項目詳情
+    for (Order order : orders) {
+      List<OrderItem> items = orderItemRepository.findByOrderId(order.getOrderId());
+      order.setItems(items);
+    }
+    return orders;
+  }
+
+  /**
+   * 管理員更新訂單狀態
+   * 驗證訂單存在性並確保狀態轉換的合法性
+   *
+   * @param orderId 訂單ID
+   * @param newStatus 新的訂單狀態
+   * @throws IllegalArgumentException 當訂單不存在時拋出
+   * @throws IllegalStateException 當狀態轉換不合法時拋出
+   */
+  public void updateOrderStatus(int orderId, int newStatus) {
+    // 檢查訂單是否存在
+    Order order = orderRepository.findById(orderId);
+    if (order == null) {
+      throw new IllegalArgumentException("訂單不存在");
+    }
+
+    // 驗證狀態轉換的合法性
+    validateStatusTransition(order.getStatusId(), newStatus);
+
+    // 更新訂單狀態
+    orderRepository.updateOrderStatus(orderId, newStatus);
+  }
+
+  /**
+   * 驗證訂單狀態轉換的合法性
+   * 檢查當前狀態是否可以轉換為目標狀態
+   *
+   * @param currentStatus 當前訂單狀態
+   * @param newStatus 目標訂單狀態
+   * @throws IllegalStateException 當狀態轉換不符合業務規則時拋出
+   */
+  private void validateStatusTransition(int currentStatus, int newStatus) {
+    // 已取消或已退款的訂單不能再變更狀態
+    if (currentStatus == OrderStatusConstants.CANCELLED ||
+        currentStatus == OrderStatusConstants.REFUNDED) {
+      throw new IllegalStateException("已取消或已退款的訂單不能改變狀態");
+    }
+
+    // 未付款的訂單只能被取消或設定為過期
+    if (currentStatus == OrderStatusConstants.ORDERED &&
+        newStatus != OrderStatusConstants.CANCELLED &&
+        newStatus != OrderStatusConstants.EXPIRED) {
+      throw new IllegalStateException("未付款的訂單只能被取消或設為過期");
+    }
+
+    // 已完成的訂單只能申請退款
+    if (currentStatus == OrderStatusConstants.COMPLETED &&
+        newStatus != OrderStatusConstants.REFUNDED) {
+      throw new IllegalStateException("已完成的訂單只能申請退款");
+    }
+  }
+
+  /**
+   * 管理員查詢所有訂單（基本資訊）
+   */
+  public List<Order> findAllForAdmin() {
+    return orderRepository.findAllForAdmin();
+  }
+
+  /**
+   * 管理員查詢訂單詳情（完整資訊）
+   */
+  public Order findByIdForAdmin(int orderId) {
+    return orderRepository.findByIdForAdmin(orderId);
+  }
+
+  /**
+   * 管理員依狀態查詢訂單
+   */
+  public List<Order> findByStatusForAdmin(int status) {
+    return orderRepository.findByStatusForAdmin(status);
+  }
+
+
+
 }

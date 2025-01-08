@@ -67,4 +67,31 @@ public class ProductService {
     Product product = productRepository.findById(productId);
     return product != null ? product.getAvailableStock() : 0;
   }
+
+  @Transactional
+  public void updateProductStatus(int productId, int status) {
+    Product product = productRepository.findById(productId);
+    if (product == null) {
+      throw new RuntimeException("商品不存在，ID: " + productId);
+    }
+
+    product.setStatus(status);
+    productRepository.update(product);
+    String statusText = status == 1 ? "上架" : "下架";
+    log.info("商品狀態已更新 - 商品ID: {}, 商品名稱: {}, 狀態: {}",
+        productId, product.getName(), statusText);
+  }
+
+  @Transactional
+  public void updateProductStock(int productId, int stock) {
+    Product product = productRepository.findById(productId);
+    if (product == null) {
+      throw new RuntimeException("商品不存在，ID: " + productId);
+    }
+
+    product.setStock(stock);
+    productRepository.update(product);
+    log.info("商品庫存已更新 - 商品ID: {}, 商品名稱: {}, 庫存: {}",
+        productId, product.getName(), stock);
+  }
 }

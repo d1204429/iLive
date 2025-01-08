@@ -49,6 +49,21 @@ public class ProductPromotionController {
     }
   }
 
+  // ProductPromotionController.java
+  @GetMapping("/promotion/{promotionId}/products")
+  public ResponseEntity<List<Map<String, Object>>> getPromotionProducts(
+      @PathVariable("promotionId") int promotionId) {
+    try {
+      log.info("獲取活動ID:{}的所有商品", promotionId);
+      List<Map<String, Object>> products = productPromotionService.getPromotionProducts(promotionId);
+      return new ResponseEntity<>(products, HttpStatus.OK);
+    } catch (Exception e) {
+      log.error("獲取活動商品列表失敗", e);
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+
   /**
    * 取得所有商品促銷
    */

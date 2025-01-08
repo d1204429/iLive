@@ -1,11 +1,10 @@
 package fcu.iLive.controller.user;
 
 
-import fcu.iLive.model.product.Product;
-import fcu.iLive.service.product.ProductService;
+import fcu.iLive.service.product.RecommendedProductService;
 import fcu.iLive.service.promotion.ProductPromotionService;
+import fcu.iLive.model.product.RecommendedProduct;
 import java.math.BigDecimal;
-import java.util.HashMap;
 import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -19,6 +18,9 @@ public class UserProductController {
 
   @Autowired
   private ProductPromotionService productPromotionService;
+
+  @Autowired
+  private RecommendedProductService RecommendedProductservice;
 
   /**
    * 取得上架商品列表（含優惠價格）
@@ -76,6 +78,32 @@ public class UserProductController {
     try {
       List<Map<String, Object>> products =
           productPromotionService.searchProductsWithPrices(keyword, minPrice, maxPrice);
+      return new ResponseEntity<>(products, HttpStatus.OK);
+    } catch (Exception e) {
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * 熱門商品序列
+   */
+  @GetMapping("/recommends")
+  public ResponseEntity<List<RecommendedProduct>> getRecommends() {
+    try {
+      List<RecommendedProduct> recommends = RecommendedProductservice.findAll();
+      return new ResponseEntity<>(recommends, HttpStatus.OK);
+    } catch (Exception e) {
+      return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+    }
+  }
+
+  /**
+   * 取得當前有效的優惠商品
+   */
+  @GetMapping("/promotions/active")
+  public ResponseEntity<List<Map<String, Object>>> getActivePromotionalProducts() {
+    try {
+      List<Map<String, Object>> products = productPromotionService.getActivePromotionalProducts();
       return new ResponseEntity<>(products, HttpStatus.OK);
     } catch (Exception e) {
       return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
