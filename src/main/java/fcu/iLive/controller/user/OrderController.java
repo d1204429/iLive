@@ -4,6 +4,7 @@ import fcu.iLive.model.order.Order;
 import fcu.iLive.service.order.OrderService;
 import fcu.iLive.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -189,26 +190,21 @@ public class OrderController {
    * @param token JWT令牌
    * @return 訂單列表
    */
-  @GetMapping
-  public ResponseEntity<Map<String, Object>> getUserOrders(
+  @GetMapping("/all")
+  public ResponseEntity<Map<String, Object>> getAllOrders(
       @RequestHeader("Authorization") String token) {
-
-    Map<String, Object> response = new HashMap<>();
     try {
-      int userId = jwtUtil.getUserIdFromToken(token.substring(7));
-      List<Order> orders = orderService.getUserOrders(userId);
+      List<Order> orders = orderService.getAllOrdersWithDetails();
 
-      response.put("success", true);
-      response.put("data", Map.of(
-          "orders", orders,
-          "total", orders.size()
-      ));
+      Map<String, Object> response = new HashMap<>();
+      response.put("orders", orders);
 
       return ResponseEntity.ok(response);
     } catch (Exception e) {
-      response.put("success", false);
-      response.put("message", e.getMessage());
-      return ResponseEntity.badRequest().body(response);
+      Map<String, Object> errorResponse = new HashMap<>();
+      errorResponse.put("error", e.getMessage());
+      return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+          .body(errorResponse);
     }
   }
 }

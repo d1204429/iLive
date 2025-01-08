@@ -185,6 +185,20 @@ public class AdminController {
   }
 
   /**
+   * 獲取所有管理員的角色列表
+   */
+  @GetMapping("/accounts/roles")
+  public ResponseEntity<?> getAllAdminRoles() {
+    try {
+      Map<Integer, List<AdminRole>> allRoles = adminService.getAllAdminRoles();
+      return ResponseEntity.ok(allRoles);
+    } catch (Exception e) {
+      return ResponseEntity.internalServerError()
+          .body(Map.of("message", "獲取角色列表失敗: " + e.getMessage()));
+    }
+  }
+
+  /**
    * 獲取所有管理員列表
    */
   @GetMapping("/accounts")

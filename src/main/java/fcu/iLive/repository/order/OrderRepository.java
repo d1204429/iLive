@@ -166,4 +166,17 @@ public class OrderRepository {
     String sql = "SELECT * FROM Orders WHERE StatusId = ? ORDER BY CreatedAt DESC";
     return jdbcTemplate.query(sql, orderRowMapper, status);
   }
+
+  /**
+   * 查詢所有訂單及其詳細資訊
+   * @return 訂單列表
+   */
+  public List<Order> findAll() {
+    String sql = """
+        SELECT * FROM Orders 
+        ORDER BY OrderId DESC, CreatedAt DESC
+        """;
+
+    return jdbcTemplate.query(sql, orderRowMapper);
+  }
 }

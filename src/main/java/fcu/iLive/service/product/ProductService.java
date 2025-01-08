@@ -23,7 +23,7 @@ public class ProductService {
 
   @Transactional
   public Product createProduct(Product product) {
-    product.setLockedStock(0);
+    //product.setLockedStock(0);
     product.setStatus(1);
     return productRepository.save(product);
   }
@@ -46,7 +46,7 @@ public class ProductService {
     if (existingProduct == null) {
       throw new RuntimeException("Product not found");
     }
-    product.setLockedStock(existingProduct.getLockedStock());
+    //product.setLockedStock(existingProduct.getLockedStock());
     productRepository.update(product);
   }
 

@@ -1,6 +1,7 @@
 package fcu.iLive.repository.product;
 
 import fcu.iLive.model.product.Product;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
@@ -21,6 +22,7 @@ import java.util.List;
  * 商品資料訪問層
  * 處理商品相關的資料庫操作，包含基本CRUD及庫存管理
  */
+@Slf4j
 @Repository
 public class ProductRepository {
 
@@ -39,7 +41,7 @@ public class ProductRepository {
       product.setCategoryId(rs.getInt("CategoryID"));
       product.setBrand(rs.getString("Brand"));
       product.setImageUrl(rs.getString("ImageURL"));
-      product.setLockedStock(rs.getInt("LockedStock"));
+      //product.setLockedStock(rs.getInt("LockedStock"));
       product.setParentCategoryId(rs.getInt("ParentCategoryID"));
 
       Timestamp createdAt = rs.getTimestamp("CreatedAt");
@@ -80,7 +82,7 @@ public class ProductRepository {
    */
   public Product save(Product product) {
     String sql = "INSERT INTO Products (Name, Description, Price, Stock, CategoryID, Brand, " +
-        "ImageURL, LockedStock, Status) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)";
+        "ImageURL, Status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";  // 移除 LockedStock
 
     KeyHolder keyHolder = new GeneratedKeyHolder();
 
@@ -142,7 +144,6 @@ public class ProductRepository {
             CategoryID = ?, 
             Brand = ?, 
             ImageURL = ?,
-            LockedStock = ?,
             Status = ?,
             UpdatedAt = CURRENT_TIMESTAMP 
         WHERE ProductID = ?
@@ -156,7 +157,6 @@ public class ProductRepository {
         product.getCategoryId(),
         product.getBrand(),
         product.getImageUrl(),
-        product.getLockedStock(),
         product.getStatus(),
         product.getProductId());
   }
@@ -218,19 +218,19 @@ public class ProductRepository {
     return jdbcTemplate.query(sql.toString(), productRowMapper, params.toArray());
   }
 
-  /**
-   * 更新商品的庫存鎖定數量
-   * @param productId 商品ID
-   * @param lockedStock 要增加的鎖定數量(正數增加/負數減少)
-   */
-  public void updateLockedStock(int productId, int lockedStock) {
-    String sql = "UPDATE Products SET LockedStock = LockedStock + ? WHERE ProductID = ?";
-    int updatedRows = jdbcTemplate.update(sql, lockedStock, productId);
-
-    if (updatedRows == 0) {
-      throw new RuntimeException("更新商品鎖定庫存失敗: ProductID=" + productId);
-    }
-  }
+//  /**
+//   * 更新商品的庫存鎖定數量
+//   * @param productId 商品ID
+//   * @param lockedStock 要增加的鎖定數量(正數增加/負數減少)
+//   */
+//  public void updateLockedStock(int productId, int lockedStock) {
+//    String sql = "UPDATE Products SET LockedStock = LockedStock + ? WHERE ProductID = ?";
+//    int updatedRows = jdbcTemplate.update(sql, lockedStock, productId);
+//
+//    if (updatedRows == 0) {
+//      throw new RuntimeException("更新商品鎖定庫存失敗: ProductID=" + productId);
+//    }
+//  }
 
   /**
    * 扣減商品的實際庫存和保留庫存
@@ -240,32 +240,45 @@ public class ProductRepository {
    * @return 是否扣減成功
    */
   public boolean deductStock(int productId, int quantity) {
+    // 先檢查當前庫存
+    Product product = findById(productId);
+    if (product == null) {
+      log.error("商品不存在 - 商品ID: {}", productId);
+      return false;
+    }
+    log.info("開始扣減庫存 - 商品ID: {}, 商品名稱: {}, 當前庫存: {}, 扣減數量: {}",
+        productId, product.getName(), product.getStock(), quantity);
+
     String sql = """
         UPDATE Products 
         SET Stock = Stock - ?, 
-            LockedStock = LockedStock - ?, 
             UpdatedAt = CURRENT_TIMESTAMP 
-        WHERE ProductID = ? AND Stock >= ? AND LockedStock >= ?
+        WHERE ProductID = ? AND Stock >= ?
         """;
-    return jdbcTemplate.update(sql, quantity, quantity, productId, quantity, quantity) > 0;
-  }
 
-  /**
-   * 釋放商品的保留庫存
-   * 用於訂單取消或訂單逾期時釋放庫存
-   * @param productId 商品ID
-   * @param quantity 釋放數量
-   * @return 是否釋放成功
-   */
-  public boolean releaseLockedStock(int productId, int quantity) {
-    String sql = """
-        UPDATE Products 
-        SET LockedStock = LockedStock - ?, 
-            UpdatedAt = CURRENT_TIMESTAMP 
-        WHERE ProductID = ? AND LockedStock >= ?
-        """;
-    return jdbcTemplate.update(sql, quantity, productId, quantity) > 0;
+    int updatedRows = jdbcTemplate.update(sql, quantity, productId, quantity);
+    log.info("扣減庫存結果 - 更新行數: {}", updatedRows);
+
+    return updatedRows > 0;
   }
+  //            LockedStock = LockedStock - ?,
+
+//  /**
+//   * 釋放商品的保留庫存
+//   * 用於訂單取消或訂單逾期時釋放庫存
+//   * @param productId 商品ID
+//   * @param quantity 釋放數量
+//   * @return 是否釋放成功
+//   */
+//  public boolean releaseLockedStock(int productId, int quantity) {
+//    String sql = """
+//        UPDATE Products
+//        SET LockedStock = LockedStock - ?,
+//            UpdatedAt = CURRENT_TIMESTAMP
+//        WHERE ProductID = ? AND LockedStock >= ?
+//        """;
+//    return jdbcTemplate.update(sql, quantity, productId, quantity) > 0;
+//  }
 
   /**
    * 檢查商品是否有足夠的可用庫存

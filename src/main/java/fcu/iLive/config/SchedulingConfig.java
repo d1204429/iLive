@@ -1,7 +1,7 @@
 package fcu.iLive.config;
 
 import fcu.iLive.service.order.OrderService;
-import fcu.iLive.service.product.StockLockService;
+//import fcu.iLive.service.product.StockLockService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -21,7 +21,7 @@ public class SchedulingConfig implements SchedulingConfigurer {
   private static final Logger logger = LoggerFactory.getLogger(SchedulingConfig.class);
 
   @Autowired
-  private StockLockService stockLockService;
+  private OrderService orderService;
 
   /**
    * 配置排程任務的執行器
@@ -49,7 +49,7 @@ public class SchedulingConfig implements SchedulingConfigurer {
   public void handleExpiredOrders() {
     try {
       logger.info("開始處理過期訂單...");
-      stockLockService.processExpiredLocks();;
+      orderService.processExpiredOrders();
       logger.info("過期訂單處理完成");
     } catch (Exception e) {
       logger.error("處理過期訂單時發生錯誤：", e);

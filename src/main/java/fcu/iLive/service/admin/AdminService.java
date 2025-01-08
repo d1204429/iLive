@@ -286,4 +286,24 @@ public class AdminService {
     admins.forEach(admin -> admin.setPasswordHash(null));
     return admins;
   }
+
+  /**
+   * 獲取所有管理員的角色列表
+   * @return Map<Integer, List<AdminRole>> key為管理員ID，value為該管理員的角色列表
+   */
+  public Map<Integer, List<AdminRole>> getAllAdminRoles() {
+    // 1. 獲取所有管理員
+    List<Admin> admins = adminRepository.findAll();
+
+    // 2. 建立結果集
+    Map<Integer, List<AdminRole>> result = new HashMap<>();
+
+    // 3. 獲取每個管理員的角色列表
+    for (Admin admin : admins) {
+      List<AdminRole> roles = adminRepository.getAdminRoles(admin.getAdminId());
+      result.put(admin.getAdminId(), roles);
+    }
+
+    return result;
+  }
 }

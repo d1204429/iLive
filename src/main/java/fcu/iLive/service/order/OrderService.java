@@ -9,9 +9,10 @@ import fcu.iLive.repository.order.OrderRepository;
 import fcu.iLive.repository.order.OrderItemRepository;
 import fcu.iLive.repository.product.ProductRepository;
 import fcu.iLive.service.cart.CartService;
-import fcu.iLive.service.cart.ShoppingCartService;
-import fcu.iLive.service.product.StockLockService;
+//import fcu.iLive.service.cart.ShoppingCartService;
+//import fcu.iLive.service.product.StockLockService;
 import fcu.iLive.service.promotion.ProductPromotionService;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,8 +23,9 @@ import java.util.Map;
 
 /**
  * 訂單服務層
- * 處理訂單相關的業務邏輯，整合庫存鎖定和價格計算
+ * 處理訂單相關的業務邏輯和價格計算
  */
+@Slf4j
 @Service
 public class OrderService {
 
@@ -36,8 +38,8 @@ public class OrderService {
   @Autowired
   private ProductRepository productRepository;
 
-  @Autowired
-  private StockLockService stockLockService;
+//  @Autowired
+//  private StockLockService stockLockService;
 
   @Autowired
   private ProductPromotionService productPromotionService;
@@ -86,15 +88,15 @@ public class OrderService {
       }
 
       // 更新保留庫存
-      try {
-        productRepository.updateLockedStock(productId, quantity);
-      } catch (RuntimeException e) {
-        throw new IllegalStateException(
-            String.format("商品「%s」庫存已被其他訂單保留，請重新確認",
-                product.getName()
-            ), e
-        );
-      }
+//      try {
+//        productRepository.updateLockedStock(productId, quantity);
+//      } catch (RuntimeException e) {
+//        throw new IllegalStateException(
+//            String.format("商品「%s」庫存已被其他訂單保留，請重新確認",
+//                product.getName()
+//            ), e
+//        );
+//      }
 
       // 計算總額
       Map<String, Object> productPrice = productPromotionService.getProductWithPrice(productId);
@@ -127,7 +129,7 @@ public class OrderService {
       orderItem.setPrice(finalPrice);
       orderItemRepository.save(orderItem);
 
-      stockLockService.handleOrderCreated(orderId, productId, quantity, userId);
+//      stockLockService.handleOrderCreated(orderId, productId, quantity, userId);
     }
 
     // 清空購物車
@@ -176,7 +178,34 @@ public class OrderService {
    * @param paymentMethod 支付方式
    */
   private void completePayment(int orderId, String paymentMethod) {
-    stockLockService.handleOrderPaid(orderId);
+
+
+    // 獲取訂單項目
+    List<OrderItem> orderItems = orderItemRepository.findByOrderId(orderId);
+
+    // 扣除庫存
+    for (OrderItem item : orderItems) {
+      Product product = productRepository.findById(item.getProductId());
+      if (product == null) {
+        throw new RuntimeException("商品不存在");
+      }
+
+      // 檢查庫存是否足夠
+      if (product.getStock() < item.getQuantity()) {
+        throw new RuntimeException(
+            String.format("商品「%s」庫存不足，剩餘%d件",
+                product.getName(),
+                product.getStock()
+            ));
+      }
+
+      // 扣除庫存
+      if (!productRepository.deductStock(item.getProductId(), item.getQuantity())) {
+        throw new RuntimeException(
+            String.format("商品「%s」庫存扣減失敗", product.getName()));
+      }
+    }
+    //    stockLockService.handleOrderPaid(orderId);
     orderRepository.updateOrderStatus(orderId, OrderStatusConstants.PAID);
   }
 
@@ -194,7 +223,8 @@ public class OrderService {
       throw new IllegalStateException("只有未付款的訂單可以取消");
     }
 
-    stockLockService.handleOrderCancelled(orderId);
+//    stockLockService.handleOrderCancelled(orderId);
+    orderRepository.updateOrderStatus(orderId, OrderStatusConstants.CANCELLED);
   }
 
   /**
@@ -256,10 +286,15 @@ public class OrderService {
    * @return 訂單實體
    */
   private Order validateOrderForPayment(int orderId, int userId) {
+    log.info("開始驗證訂單支付 - 訂單ID: {}, 用戶ID: {}", orderId, userId);
+
     validateOrderOwnership(orderId, userId);
     Order order = orderRepository.findById(orderId);
+    log.info("訂單資訊 - 狀態: {}, 建立時間: {}", order.getStatusId(), order.getCreatedAt());
 
     if (order.getStatusId() != OrderStatusConstants.ORDERED) {
+      log.warn("訂單狀態不符 - 當前狀態: {}, 期望狀態: {}",
+          order.getStatusId(), OrderStatusConstants.ORDERED);
       throw new IllegalStateException("訂單狀態不允許支付");
     }
 
@@ -268,5 +303,39 @@ public class OrderService {
     }
 
     return order;
+  }
+
+  /**
+   * 獲取所有訂單及其詳細內容
+   * @return 訂單列表
+   */
+  public List<Order> getAllOrdersWithDetails() {
+    List<Order> orders = orderRepository.findAll();
+    for (Order order : orders) {
+      List<OrderItem> items = orderItemRepository.findByOrderId(order.getOrderId());
+      order.setItems(items);
+    }
+    return orders;
+  }
+
+
+
+  /**
+   * 獲取所有訂單及其詳細內容
+   * 變更訂單狀態為被未付款取消
+   */
+  @Transactional
+  public void processExpiredOrders() {
+    // 查詢過期未付款訂單
+    List<Order> expiredOrders = orderRepository.findExpiredUnpaidOrders();
+
+    // 批次更新訂單狀態
+    if (!expiredOrders.isEmpty()) {
+      List<Integer> orderIds = expiredOrders.stream()
+          .map(Order::getOrderId)
+          .toList();
+
+      orderRepository.updateExpiredOrderStatus(orderIds);
+    }
   }
 }

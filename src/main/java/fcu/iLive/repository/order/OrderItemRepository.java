@@ -39,9 +39,7 @@ public class OrderItemRepository {
   }
 
   public List<OrderItem> findByOrderId(int orderId) {
-    String sql = "SELECT oi.*, p.ProductName FROM OrderItems oi " +
-        "JOIN Products p ON oi.ProductID = p.ProductID " +
-        "WHERE oi.OrderID = ?";
+    String sql = "SELECT * FROM OrderItems WHERE OrderID = ?";
 
     return jdbcTemplate.query(sql,
         new Object[]{orderId},
@@ -96,4 +94,6 @@ public class OrderItemRepository {
     int rowsAffected = jdbcTemplate.update(sql, orderItemId, orderId);
     return rowsAffected > 0;
   }
+
+
 }
