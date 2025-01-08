@@ -12,11 +12,29 @@ import java.util.List;
 
 @Slf4j
 @RestController
-@RequestMapping("/api/v1/categories")
+@RequestMapping("/api/v1/admin/categories")
 public class CategoryController {
 
     @Autowired
     private CategoryService categoryService;
+
+    /**
+     * 建立新分類
+     */
+    @PostMapping
+    public ResponseEntity<Category> createCategory(@RequestBody Category category) {
+        try {
+            log.info("建立新分類: {}", category);
+            Category createdCategory = categoryService.createCategory(category);
+            return new ResponseEntity<>(createdCategory, HttpStatus.CREATED);
+        } catch (IllegalArgumentException e) {
+            log.error("建立分類參數錯誤", e);
+            return new ResponseEntity<>(HttpStatus.BAD_REQUEST);
+        } catch (Exception e) {
+            log.error("建立分類失敗", e);
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 
     /**
      * 獲取所有分類
@@ -50,7 +68,9 @@ public class CategoryController {
             log.error("獲取分類詳情失敗", e);
             return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
         }
-    }    /**
+    }
+
+    /**
      * 獲取子分類
      */
     @GetMapping("/{id}/subcategories")
@@ -70,8 +90,8 @@ public class CategoryController {
      */
     @PutMapping("/{id}")
     public ResponseEntity<Category> updateCategory(
-            @PathVariable("id") int categoryId,
-            @RequestBody Category category) {
+        @PathVariable("id") int categoryId,
+        @RequestBody Category category) {
         try {
             log.info("更新分類ID: {}, 資料: {}", categoryId, category);
             category.setCategoryId(categoryId);
@@ -108,4 +128,3 @@ public class CategoryController {
         }
     }
 }
-

@@ -114,10 +114,11 @@ public class AdminController {
    */
   @PostMapping("/accounts/{id}/roles/{roleId}")
   public ResponseEntity<?> assignRole(
-      @PathVariable int id,
-      @PathVariable int roleId,
-      @RequestAttribute("adminId") int operatorId) {
+      @PathVariable("id") int id,
+      @PathVariable("roleId") int roleId){
     try {
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int operatorId = Integer.parseInt(auth.getPrincipal().toString());
       adminService.assignRole(id, roleId, operatorId);
       return ResponseEntity.ok()
           .body(Map.of("message", "角色分配成功"));
@@ -135,10 +136,13 @@ public class AdminController {
    */
   @DeleteMapping("/accounts/{id}/roles/{roleId}")
   public ResponseEntity<?> removeRole(
-      @PathVariable int id,
-      @PathVariable int roleId,
-      @RequestAttribute("adminId") int operatorId) {
+      @PathVariable("id") int id,
+      @PathVariable("roleId") int roleId) {
     try {
+      // 從 Security Context 取得操作者 ID
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int operatorId = Integer.parseInt(auth.getPrincipal().toString());
+
       adminService.removeRole(id, roleId, operatorId);
       return ResponseEntity.ok()
           .body(Map.of("message", "角色移除成功"));
