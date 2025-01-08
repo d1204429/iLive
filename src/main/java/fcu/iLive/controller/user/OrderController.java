@@ -6,6 +6,7 @@ import fcu.iLive.util.JwtUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -36,13 +37,14 @@ public class OrderController {
    */
   @PostMapping
   public ResponseEntity<Map<String, Object>> createOrder(
-      @RequestHeader("Authorization") String token,
       @RequestBody Map<String, String> requestMap) {
-
+        //@RequestHeader("Authorization") String token,
     Map<String, Object> response = new HashMap<>();
     try {
       // 驗證用戶
-      int userId = jwtUtil.getUserIdFromToken(token.substring(7));
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+      //int userId = jwtUtil.getUserIdFromToken(token.substring(7));
 
       // 獲取配送地址
       String shippingAddress = requestMap.get("shippingAddress");
@@ -79,14 +81,17 @@ public class OrderController {
    */
   @PostMapping("/{orderId}/payment")
   public ResponseEntity<Map<String, Object>> processPayment(
-      @RequestHeader("Authorization") String token,
       @PathVariable int orderId,
       @RequestBody Map<String, String> paymentInfo) {
+
+        //@RequestHeader("Authorization") String token,
 
     Map<String, Object> response = new HashMap<>();
     try {
       // 解析用戶ID
-      int userId = jwtUtil.getUserIdFromToken(token.substring(7));
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+      //int userId = jwtUtil.getUserIdFromToken(token.substring(7));
 
       // 獲取並驗證付款方式
       String paymentMethod = paymentInfo.get("paymentMethod");
@@ -165,12 +170,13 @@ public class OrderController {
    */
   @GetMapping("/{orderId}")
   public ResponseEntity<Map<String, Object>> getOrder(
-      @RequestHeader("Authorization") String token,
       @PathVariable int orderId) {
-
+        //@RequestHeader("Authorization") String token,
     Map<String, Object> response = new HashMap<>();
     try {
-      int userId = jwtUtil.getUserIdFromToken(token.substring(7));
+      var auth = SecurityContextHolder.getContext().getAuthentication();
+      int userId = Integer.parseInt(auth.getPrincipal().toString());
+      //int userId = jwtUtil.getUserIdFromToken(token.substring(7));
       Order order = orderService.getOrderById(orderId, userId);
 
       response.put("success", true);
